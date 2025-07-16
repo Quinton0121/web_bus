@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Bot 配置页面</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-size: 16px;
+        }
+        .content-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #6366f1;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .bot-card, .bus-card {
+            width: 100%;
+            height: auto;
+            min-height: 120px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .bot-icon, .bus-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #165DFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-bottom: 12px;
+        }
+        .default-bot .bot-icon, .default-bus .bus-icon {
+            background-color: #FF6B8B;
+        }
+        .bot-name, .bus-name {
+            font-weight: 600;
+            font-size: 15px;
+            text-align: center;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+        .bot-id, .bus-number {
+            font-size: 13px;
+            color: #64748b;
+            text-align: center;
+        }
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .bot-card:hover .delete-btn, .bus-card:hover .delete-btn {
+            opacity: 1;
+        }
+        .default-tag {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 40px 40px 0;
+            border-color: transparent #FF6B8B transparent transparent;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 6px;
+            font-size: 12px;
+            color: white;
+            transform: rotate(90deg);
+            transform-origin: 100% 0;
+        }
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #165DFF;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            min-width: 200px;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .form-container {
+            padding: 16px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        .form-section {
+            margin-bottom: 24px;
+        }
+        .form-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1e293b;
+        }
+        .form-input {
+            margin-bottom: 16px;
+        }
+        input[type="range"] {
+            height: 8px;
+        }
+        input[type="text"], input[type="range"] {
+            width: 100%;
+        }
+        input[type="text"] {
+            height: 56px;
+            padding: 0 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 16px;
+        }
+        input[type="text"]:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+        button {
+            height: 56px;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        @media (min-width: 768px) {
+            .cards-container {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+            .bot-card, .bus-card {
+                width: 160px;
+                height: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="content-card">
+        <div class="form-container">
+            <div class="max-w-2xl mx-auto">
+                <!-- Bot配置区 -->
+                <div class="form-section">
+                    <h2 class="form-title">Bot配置</h2>
+                    <div class="form-input">
+                        <label for="botName" class="block text-sm font-medium text-gray-700 mb-2">Bot名称</label>
+                        <input type="text" id="botName" placeholder="输入您的Bot名称">
+                    </div>
+                    
+                    <div class="form-input">
+                        <label for="botId" class="block text-sm font-medium text-gray-700 mb-2">Telegram Bot ID</label>
+                        <input type="text" id="botId" placeholder="请输入您的Telegram Bot ID">
+                    </div>
+                    
+                    <button id="createBotBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        创建Bot
+                    </button>
+                    
+                    <div class="form-input mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">已创建的Bot</h3>
+                        <div id="botCardsContainer" class="grid grid-cols-1 gap-2">
+                            <!-- Bot卡片将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 通知设置区 -->
+                <div class="form-section">
+                    <h2 class="form-title">通知设置</h2>
+                    <div class="form-input">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">通知时间</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="notifyTime" min="420" max="660" value="540">
+                            <span id="timeValue" class="text-indigo-600 font-medium">09:00</span>
+                            <span id="timePeriod" class="text-gray-500">上午</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-input">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">启用通知</label>
+                        <label class="switch">
+                            <input type="checkbox" id="notifySwitch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 公交站配置区 -->
+                <div class="form-section">
+                    <h2 class="form-title">公交站配置</h2>
+                    <div class="form-input">
+                        <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称</label>
+                        <input type="text" id="busStop" placeholder="请输入公交站名称">
+                    </div>
+                    
+                    <div class="form-input">
+                        <label for="busNumber" class="block text-sm font-medium text-gray-700 mb-2">目标公交编号</label>
+                        <input type="text" id="busNumber" placeholder="请输入目标公交编号">
+                    </div>
+                    
+                    <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        添加公交站
+                    </button>
+                    
+                    <div class="form-input mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
+                        <div id="busCardsContainer" class="grid grid-cols-1 gap-2">
+                            <!-- 公交站卡片将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast">操作成功</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 时间滑块格式化
+            const notifyTime = document.getElementById('notifyTime');
+            const timeValue = document.getElementById('timeValue');
+            const timePeriod = document.getElementById('timePeriod');
+            
+            function formatTime(minutes) {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                const period = hours >= 12 ? '下午' : '上午';
+                const displayHours = hours > 12 ? hours - 12 : hours;
+                return `${displayHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            }
+            
+            notifyTime.addEventListener('input', function() {
+                const minutes = parseInt(this.value);
+                timeValue.textContent = formatTime(minutes);
+                timePeriod.textContent = minutes >= 720 ? '下午' : '上午';
+            });
+            
+            // 数据存储
+            let bots = [];
+            let busStops = [];
+            
+            // DOM元素
+            const botNameInput = document.getElementById('botName');
+            const botIdInput = document.getElementById('botId');
+            const createBotBtn = document.getElementById('createBotBtn');
+            const botCardsContainer = document.getElementById('botCardsContainer');
+            const busStopInput = document.getElementById('busStop');
+            const busNumberInput = document.getElementById('busNumber');
+            const addBusBtn = document.getElementById('addBusBtn');
+            const busCardsContainer = document.getElementById('busCardsContainer');
+            
+            // 创建Bot卡片
+            function createBotCard(bot, isDefault = false) {
+                const card = document.createElement('div');
+                card.classList.add('bot-card');
+                if(isDefault) card.classList.add('default-bot');
+                card.dataset.id = bot.id;
+                
+                card.innerHTML = `
+                    ${isDefault ? '<div class="default-tag">默认</div>' : ''}
+                    <div class="bot-icon">
+                        <i class="fab fa-telegram"></i>
+                    </div>
+                    <div class="bot-name">${bot.name}</div>
+                    <div class="bot-id">ID: ${bot.id.substring(0, 6)}...</div>
+                    <div class="delete-btn">
+                        <i class="fas fa-times"></i>
+                    </div>
+                `;
+                
+                // 点击波纹效果
+                card.addEventListener('click', function(e) {
+                    if(e.target.closest('.delete-btn')) return;
+                    
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    this.appendChild(ripple);
+                    
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    ripple.style.left = `${x}px`;
+                    ripple.style.top = `${y}px`;
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+                
+                // 删除按钮
+                const deleteBtn = card.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const botId = card.dataset.id;
+                    bots = bots.filter(b => b.id !== botId);
+                    
+                    // 如果删除的是默认项，则设置第一个为默认
+                    if(isDefault && bots.length > 0) {
+                        bots[0].isDefault = true;
+                    }
+                    
+                    renderBotCards();
+                    showToast('Bot已删除');
+                });
+                
+                return card;
+            }
+            
+            // 创建公交站卡片
+            function createBusStopCard(stop, isDefault = false) {
+                const card = document.createElement('div');
+                card.classList.add('bus-card');
+                if(isDefault) card.classList.add('default-bus');
+                card.dataset.id = stop.id;
+                
+                card.innerHTML = `
+                    ${isDefault ? '<div class="default-tag">默认</div>' : ''}
+                    <div class="bus-icon">
+                        <i class="fas fa-bus"></i>
+                    </div>
+                    <div class="bus-name">${stop.name}</div>
+                    <div class="bus-number">公交编号: ${stop.number}</div>
+                    <div class="delete-btn">
+                        <i class="fas fa-times"></i>
+                    </div>
+                `;
+                
+                // 点击波纹效果
+                card.addEventListener('click', function(e) {
+                    if(e.target.closest('.delete-btn')) return;
+                    
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    this.appendChild(ripple);
+                    
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    ripple.style.left = `${x}px`;
+                    ripple.style.top = `${y}px`;
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+                
+                // 删除按钮
+                const deleteBtn = card.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const stopId = card.dataset.id;
+                    busStops = busStops.filter(s => s.id !== stopId);
+                    
+                    // 如果删除的是默认项，则设置第一个为默认
+                    if(isDefault && busStops.length > 0) {
+                        busStops[0].isDefault = true;
+                    }
+                    
+                    renderBusStopCards();
+                    showToast('公交站已删除');
+                });
+                
+                return card;
+            }
+            
+            // 渲染Bot卡片
+            function renderBotCards() {
+                botCardsContainer.innerHTML = '';
+                bots.forEach((bot, index) => {
+                    const isDefault = index === 0 && bots.length > 0;
+                    if(isDefault) bot.isDefault = true;
+                    botCardsContainer.appendChild(createBotCard(bot, isDefault));
+                });
+            }
+            
+            // 渲染公交站卡片
+            function renderBusStopCards() {
+                busCardsContainer.innerHTML = '';
+                busStops.forEach((stop, index) => {
+                    const isDefault = index === 0 && busStops.length > 0;
+                    if(isDefault) stop.isDefault = true;
+                    busCardsContainer.appendChild(createBusStopCard(stop, isDefault));
+                });
+            }
+            
+            // 创建新Bot
+            createBotBtn.addEventListener('click', function() {
+                if(botNameInput.value.trim() !== '' && botIdInput.value.trim() !== '') {
+                    const newBot = {
+                        id: Date.now().toString(),
+                        name: botNameInput.value.trim(),
+                        botId: botIdInput.value.trim(),
+                        isDefault: bots.length === 0
+                    };
+                    
+                    bots.push(newBot);
+                    renderBotCards();
+                    showToast('Bot创建成功');
+                    
+                    // 清空输入
+                    botNameInput.value = '';
+                    botIdInput.value = '';
+                } else {
+                    showToast('请填写完整的Bot信息');
+                }
+            });
+            
+            // 添加公交站
+            addBusBtn.addEventListener('click', function() {
+                if(busStopInput.value.trim() !== '' && busNumberInput.value.trim() !== '') {
+                    const newStop = {
+                        id: Date.now().toString(),
+                        name: busStopInput.value.trim(),
+                        number: busNumberInput.value.trim(),
+                        isDefault: busStops.length === 0
+                    };
+                    
+                    busStops.push(newStop);
+                    renderBusStopCards();
+                    showToast('公交站添加成功');
+                    
+                    // 清空输入
+                    busStopInput.value = '';
+                    busNumberInput.value = '';
+                } else {
+                    showToast('请填写完整的公交站信息');
+                }
+            });
+            
+            // Toast提示函数
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2000);
+            }
+            
+            // 初始化渲染
+            renderBotCards();
+            renderBusStopCards();
+        });
+    </script>
+</body>
+</html>
