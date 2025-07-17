@@ -1,0 +1,54 @@
+{
+  "name": "bus_request_secure",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2860,
+        300
+      ],
+      "id": "e63dd33f-0290-4a00-a00b-bda7b1fb39cd",
+      "name": "Telegram Trigger",
+      "webhookId": "{{ $env.WEBHOOK_ID_TRIGGER }}",
+      "credentials": {
+        "telegramApi": {
+          "id": "{{ $env.TELEGRAM_CREDENTIAL_ID }}",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "{{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.data }}",
+        "replyMarkup": "=none",
+        "forceReply": {},
+        "replyKeyboardOptions": {},
+        "replyKeyboardRemove": {},
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1480,
+        300
+      ],
+      "id": "237b12ff-560a-40df-9868-3cd1209eed31",
+      "name": "Telegram1",
+      "webhookId": "{{ $env.WEBHOOK_ID_TELEGRAM }}",
+      "credentials": {
+        "telegramApi": {
+          "id": "{{ $env.TELEGRAM_CREDENTIAL_ID }}",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ]
+}

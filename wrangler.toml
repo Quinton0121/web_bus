@@ -1,0 +1,9 @@
+name = "web-bus-worker"
+type = "javascript"
+main = "src/index.ts"
+compatibility_date = "2024-07-17"
+
+[[kv_namespaces]]
+binding = "webbusdb"
+id = "2d476edb864c47a8b7a2e1eaaef52c60"
+preview_id = "your_preview_kv_id_here"

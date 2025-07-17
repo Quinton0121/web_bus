@@ -241,31 +241,28 @@
     <main class="content-card">
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
-                <!-- Bot配置区 -->
+                <!-- 公交站配置区 -->
                 <div class="form-section">
-                    <h2 class="form-title">Bot配置</h2>
+                    <h2 class="form-title">公交站配置</h2>
                     <div class="form-input">
-                        <label for="botName" class="block text-sm font-medium text-gray-700 mb-2">Bot名称</label>
-                        <input type="text" id="botName" placeholder="输入您的Bot名称">
+                        <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称</label>
+                        <input type="text" id="busStop" placeholder="请输入公交站名称">
                     </div>
-                    
                     <div class="form-input">
-                        <label for="botId" class="block text-sm font-medium text-gray-700 mb-2">Telegram Bot ID</label>
-                        <input type="text" id="botId" placeholder="请输入您的Telegram Bot ID">
+                        <label for="busNumber" class="block text-sm font-medium text-gray-700 mb-2">目标公交编号</label>
+                        <input type="text" id="busNumber" placeholder="请输入目标公交编号">
                     </div>
-                    
-                    <button id="createBotBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                        创建Bot
+                    <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        添加公交站
                     </button>
-                    
                     <div class="form-input mt-6">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">已创建的Bot</h3>
-                        <div id="botCardsContainer" class="grid grid-cols-1 gap-2">
-                            <!-- Bot卡片将在这里动态生成 -->
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
+                        <div id="busCardsContainer" class="grid grid-cols-1 gap-2">
+                            <!-- 公交站卡片将在这里动态生成 -->
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 通知设置区 -->
                 <div class="form-section">
                     <h2 class="form-title">通知设置</h2>
@@ -277,7 +274,6 @@
                             <span id="timePeriod" class="text-gray-500">上午</span>
                         </div>
                     </div>
-                    
                     <div class="form-input">
                         <label class="block text-sm font-medium text-gray-700 mb-2">启用通知</label>
                         <label class="switch">
@@ -286,28 +282,25 @@
                         </label>
                     </div>
                 </div>
-                
-                <!-- 公交站配置区 -->
+
+                <!-- Bot配置区 -->
                 <div class="form-section">
-                    <h2 class="form-title">公交站配置</h2>
+                    <h2 class="form-title">Bot配置</h2>
                     <div class="form-input">
-                        <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称</label>
-                        <input type="text" id="busStop" placeholder="请输入公交站名称">
+                        <label for="botName" class="block text-sm font-medium text-gray-700 mb-2">Bot名称</label>
+                        <input type="text" id="botName" placeholder="输入您的Bot名称">
                     </div>
-                    
                     <div class="form-input">
-                        <label for="busNumber" class="block text-sm font-medium text-gray-700 mb-2">目标公交编号</label>
-                        <input type="text" id="busNumber" placeholder="请输入目标公交编号">
+                        <label for="botId" class="block text-sm font-medium text-gray-700 mb-2">Telegram Bot ID</label>
+                        <input type="text" id="botId" placeholder="请输入您的Telegram Bot ID">
                     </div>
-                    
-                    <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                        添加公交站
+                    <button id="createBotBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        创建Bot
                     </button>
-                    
                     <div class="form-input mt-6">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
-                        <div id="busCardsContainer" class="grid grid-cols-1 gap-2">
-                            <!-- 公交站卡片将在这里动态生成 -->
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">已创建的Bot</h3>
+                        <div id="botCardsContainer" class="grid grid-cols-1 gap-2">
+                            <!-- Bot卡片将在这里动态生成 -->
                         </div>
                     </div>
                 </div>
@@ -341,24 +334,46 @@
             // 数据存储
             let bots = [];
             let busStops = [];
-            
-            // DOM元素
-            const botNameInput = document.getElementById('botName');
-            const botIdInput = document.getElementById('botId');
-            const createBotBtn = document.getElementById('createBotBtn');
-            const botCardsContainer = document.getElementById('botCardsContainer');
-            const busStopInput = document.getElementById('busStop');
-            const busNumberInput = document.getElementById('busNumber');
-            const addBusBtn = document.getElementById('addBusBtn');
-            const busCardsContainer = document.getElementById('busCardsContainer');
-            
+
+            // Worker API base URL (update to your deployed Worker URL if needed)
+            const API_BASE = '';
+
+            // 加载数据
+            async function loadData() {
+                try {
+                    const res = await fetch(`${API_BASE}/api/load`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        bots = data.bots || [];
+                        busStops = data.busStops || [];
+                        renderBotCards();
+                        renderBusStopCards();
+                    }
+                } catch (e) {
+                    showToast('加载数据失败');
+                }
+            }
+
+            // 保存数据
+            async function saveData() {
+                try {
+                    await fetch(`${API_BASE}/api/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bots, busStops })
+                    });
+                } catch (e) {
+                    showToast('保存数据失败');
+                }
+            }
+
             // 创建Bot卡片
             function createBotCard(bot, isDefault = false) {
                 const card = document.createElement('div');
                 card.classList.add('bot-card');
                 if(isDefault) card.classList.add('default-bot');
                 card.dataset.id = bot.id;
-                
+
                 card.innerHTML = `
                     ${isDefault ? '<div class="default-tag">默认</div>' : ''}
                     <div class="bot-icon">
@@ -370,53 +385,52 @@
                         <i class="fas fa-times"></i>
                     </div>
                 `;
-                
+
                 // 点击波纹效果
                 card.addEventListener('click', function(e) {
                     if(e.target.closest('.delete-btn')) return;
-                    
+
                     const ripple = document.createElement('span');
                     ripple.classList.add('ripple');
                     this.appendChild(ripple);
-                    
+
                     const rect = this.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
-                    
+
                     ripple.style.left = `${x}px`;
                     ripple.style.top = `${y}px`;
-                    
+
                     setTimeout(() => {
                         ripple.remove();
                     }, 600);
                 });
-                
+
                 // 删除按钮
                 const deleteBtn = card.querySelector('.delete-btn');
-                deleteBtn.addEventListener('click', function(e) {
+                deleteBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const botId = card.dataset.id;
                     bots = bots.filter(b => b.id !== botId);
-                    
                     // 如果删除的是默认项，则设置第一个为默认
                     if(isDefault && bots.length > 0) {
                         bots[0].isDefault = true;
                     }
-                    
                     renderBotCards();
+                    await saveData();
                     showToast('Bot已删除');
                 });
-                
+
                 return card;
             }
-            
+
             // 创建公交站卡片
             function createBusStopCard(stop, isDefault = false) {
                 const card = document.createElement('div');
                 card.classList.add('bus-card');
                 if(isDefault) card.classList.add('default-bus');
                 card.dataset.id = stop.id;
-                
+
                 card.innerHTML = `
                     ${isDefault ? '<div class="default-tag">默认</div>' : ''}
                     <div class="bus-icon">
@@ -428,46 +442,45 @@
                         <i class="fas fa-times"></i>
                     </div>
                 `;
-                
+
                 // 点击波纹效果
                 card.addEventListener('click', function(e) {
                     if(e.target.closest('.delete-btn')) return;
-                    
+
                     const ripple = document.createElement('span');
                     ripple.classList.add('ripple');
                     this.appendChild(ripple);
-                    
+
                     const rect = this.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
-                    
+
                     ripple.style.left = `${x}px`;
                     ripple.style.top = `${y}px`;
-                    
+
                     setTimeout(() => {
                         ripple.remove();
                     }, 600);
                 });
-                
+
                 // 删除按钮
                 const deleteBtn = card.querySelector('.delete-btn');
-                deleteBtn.addEventListener('click', function(e) {
+                deleteBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const stopId = card.dataset.id;
                     busStops = busStops.filter(s => s.id !== stopId);
-                    
                     // 如果删除的是默认项，则设置第一个为默认
                     if(isDefault && busStops.length > 0) {
                         busStops[0].isDefault = true;
                     }
-                    
                     renderBusStopCards();
+                    await saveData();
                     showToast('公交站已删除');
                 });
-                
+
                 return card;
             }
-            
+
             // 渲染Bot卡片
             function renderBotCards() {
                 botCardsContainer.innerHTML = '';
@@ -477,7 +490,7 @@
                     botCardsContainer.appendChild(createBotCard(bot, isDefault));
                 });
             }
-            
+
             // 渲染公交站卡片
             function renderBusStopCards() {
                 busCardsContainer.innerHTML = '';
@@ -487,9 +500,9 @@
                     busCardsContainer.appendChild(createBusStopCard(stop, isDefault));
                 });
             }
-            
+
             // 创建新Bot
-            createBotBtn.addEventListener('click', function() {
+            createBotBtn.addEventListener('click', async function() {
                 if(botNameInput.value.trim() !== '' && botIdInput.value.trim() !== '') {
                     const newBot = {
                         id: Date.now().toString(),
@@ -497,11 +510,10 @@
                         botId: botIdInput.value.trim(),
                         isDefault: bots.length === 0
                     };
-                    
                     bots.push(newBot);
                     renderBotCards();
+                    await saveData();
                     showToast('Bot创建成功');
-                    
                     // 清空输入
                     botNameInput.value = '';
                     botIdInput.value = '';
@@ -509,9 +521,9 @@
                     showToast('请填写完整的Bot信息');
                 }
             });
-            
+
             // 添加公交站
-            addBusBtn.addEventListener('click', function() {
+            addBusBtn.addEventListener('click', async function() {
                 if(busStopInput.value.trim() !== '' && busNumberInput.value.trim() !== '') {
                     const newStop = {
                         id: Date.now().toString(),
@@ -519,11 +531,10 @@
                         number: busNumberInput.value.trim(),
                         isDefault: busStops.length === 0
                     };
-                    
                     busStops.push(newStop);
                     renderBusStopCards();
+                    await saveData();
                     showToast('公交站添加成功');
-                    
                     // 清空输入
                     busStopInput.value = '';
                     busNumberInput.value = '';
@@ -531,21 +542,20 @@
                     showToast('请填写完整的公交站信息');
                 }
             });
-            
+
             // Toast提示函数
             function showToast(message) {
                 const toast = document.getElementById('toast');
                 toast.textContent = message;
                 toast.classList.add('show');
-                
+
                 setTimeout(() => {
                     toast.classList.remove('show');
                 }, 2000);
             }
-            
-            // 初始化渲染
-            renderBotCards();
-            renderBusStopCards();
+
+            // 初始化加载
+            loadData();
         });
     </script>
 </body>
