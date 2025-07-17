@@ -501,6 +501,16 @@
                 });
             }
 
+            // Get DOM elements
+            const createBotBtn = document.getElementById('createBotBtn');
+            const botNameInput = document.getElementById('botName');
+            const botIdInput = document.getElementById('botId');
+            const addBusBtn = document.getElementById('addBusBtn');
+            const busStopInput = document.getElementById('busStop');
+            const busNumberInput = document.getElementById('busNumber');
+            const botCardsContainer = document.getElementById('botCardsContainer');
+            const busCardsContainer = document.getElementById('busCardsContainer');
+
             // 创建新Bot
             createBotBtn.addEventListener('click', async function() {
                 if(botNameInput.value.trim() !== '' && botIdInput.value.trim() !== '') {
