@@ -587,7 +587,6 @@
                 } else {
                     console.error('Fetch button not found in card');
                 }
-                }
 
                 // 删除按钮
                 const deleteBtn = card.querySelector('.delete-btn');
@@ -620,7 +619,7 @@
                     renderBusStopCards();
                     await saveData();
                     showToast('公交站已删除');
-                }));
+                });
 
                 return card;
             }
