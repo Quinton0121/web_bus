@@ -311,21 +311,33 @@ export default {
 
     // Stop monitoring endpoint
     if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
-      if (isMonitoring && monitoringController) {
-        monitoringController.abort();
-        isMonitoring = false;
+      try {
+        if (isMonitoring && monitoringController) {
+          monitoringController.abort();
+          isMonitoring = false;
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: 'Bus monitoring stopped'
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } else {
+          return new Response(JSON.stringify({ 
+            success: false,
+            error: 'No monitoring in progress'
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (error) {
         return new Response(JSON.stringify({ 
-          success: true, 
-          message: 'Bus monitoring stopped'
+          success: false,
+          error: 'Failed to stop monitoring',
+          details: error instanceof Error ? error.message : 'Unknown error'
         }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      } else {
-        return new Response(JSON.stringify({ 
-          error: 'No monitoring in progress'
-        }), {
-          status: 400,
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
