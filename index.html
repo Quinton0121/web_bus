@@ -275,7 +275,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666;">
-            v3.2 - Fetch Ready
+            v3.3 - Debug Add
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -747,7 +747,12 @@
             });
 
             // 添加公交站
+            console.log('Setting up Add Bus Stop button listener');
             addBusBtn.addEventListener('click', async function() {
+                console.log('Add Bus Stop button clicked');
+                console.log('Bus Stop Input:', busStopInput.value);
+                console.log('Bus Number Input:', busNumberInput.value);
+                
                 if(busStopInput.value.trim() !== '' && busNumberInput.value.trim() !== '') {
                     const newStop = {
                         id: Date.now().toString(),
