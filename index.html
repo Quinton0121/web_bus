@@ -499,8 +499,15 @@
             function renderBusStopCards() {
                 busCardsContainer.innerHTML = '';
                 busStops.forEach((stop, index) => {
-                    const isDefault = index === 0 && busStops.length > 0;
-                    if(isDefault) stop.isDefault = true;
+                    // Check if this stop is marked as default, or if no stop is default and this is the first one
+                    const hasDefaultStop = busStops.some(s => s.isDefault);
+                    const isDefault = stop.isDefault || (!hasDefaultStop && index === 0);
+                    
+                    // Only set isDefault if no other stop is already default and this is the first one
+                    if (!hasDefaultStop && index === 0) {
+                        stop.isDefault = true;
+                    }
+                    
                     busCardsContainer.appendChild(createBusStopCard(stop, isDefault));
                 });
             }
