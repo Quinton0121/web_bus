@@ -136,6 +136,11 @@
             opacity: 0;
             transition: all 0.3s ease;
         }
+        .bus-actions .delete-btn {
+            position: relative;
+            top: 0;
+            right: 0;
+        }
         .fetch-btn {
             width: 24px;
             height: 24px;
@@ -270,7 +275,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666;">
-            v3.0 - Bus Integration
+            v3.1 - UI Fix
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -287,9 +292,6 @@
                     </div>
                     <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
                         添加公交站
-                    </button>
-                    <button id="fixIdsBtn" class="w-full mt-2 bg-red-600 hover:bg-red-700 text-white text-sm">
-                        修复缺失ID (如果删除按钮不工作)
                     </button>
                     <div class="form-input mt-6">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
@@ -600,7 +602,6 @@
             const botNameInput = document.getElementById('botName');
             const botIdInput = document.getElementById('botId');
             const addBusBtn = document.getElementById('addBusBtn');
-            const fixIdsBtn = document.getElementById('fixIdsBtn');
             const busStopInput = document.getElementById('busStop');
             const busNumberInput = document.getElementById('busNumber');
             const botCardsContainer = document.getElementById('botCardsContainer');
@@ -648,29 +649,6 @@
                 }
             });
 
-            // 手动修复ID按钮
-            fixIdsBtn.addEventListener('click', async function() {
-                console.log('Manual ID fix triggered');
-                console.log('Before fix - busStops:', busStops);
-                
-                let fixed = 0;
-                busStops.forEach((stop, index) => {
-                    if (!stop.id) {
-                        stop.id = Date.now().toString() + index + Math.random().toString(36).substr(2, 5);
-                        fixed++;
-                        console.log('Fixed stop:', stop);
-                    }
-                });
-                
-                if (fixed > 0) {
-                    await saveData();
-                    renderBusStopCards();
-                    showToast(`已修复 ${fixed} 个公交站的ID`);
-                    console.log('After fix - busStops:', busStops);
-                } else {
-                    showToast('所有公交站ID都正常');
-                }
-            });
 
             // Toast提示函数
             function showToast(message) {
