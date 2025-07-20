@@ -136,6 +136,10 @@
             gap: 4px;
             opacity: 0;
             transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .bus-card:hover .bus-actions {
+            opacity: 1 !important;
         }
         .bus-actions .delete-btn {
             position: relative;
@@ -143,18 +147,20 @@
             right: 0;
             width: 24px;
             height: 24px;
-            background: rgba(239, 68, 68, 0.9);
+            background: #ef4444 !important;
             border-radius: 50%;
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: white;
+            color: white !important;
             font-size: 12px;
             transition: all 0.3s ease;
+            border: none;
+            outline: none;
         }
         .bus-actions .delete-btn:hover {
-            background: rgba(239, 68, 68, 1);
+            background: #dc2626 !important;
             transform: scale(1.1);
         }
         .fetch-btn {
@@ -178,7 +184,7 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-        .bot-card:hover .delete-btn, .bus-card:hover .bus-actions {
+        .bot-card:hover .delete-btn {
             opacity: 1;
         }
         .default-tag {
@@ -291,7 +297,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v4.2 - Notes Added
+            v4.3 - Delete Fix
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
