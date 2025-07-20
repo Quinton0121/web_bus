@@ -288,7 +288,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v5.0 - Continuous Monitor
+            v5.1 - Smart Timing
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -309,6 +309,9 @@
                     </div>
                     <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
                         添加公交站
+                    </button>
+                    <button id="stopMonitoringBtn" class="w-full mt-2 bg-red-600 hover:bg-red-700 text-white text-sm">
+                        停止监控
                     </button>
                     <div class="form-input mt-6">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
@@ -570,7 +573,7 @@
                             });
                             const result = await response.json();
                             if (result.success) {
-                                showToast(`已启动20次连续监控 (每40秒更新一次)`);
+                                showToast(`已启动20次连续监控 (成功请求后等待40秒)`);
                             } else {
                                 showToast(`获取失败: ${result.error || '未知错误'}`);
                             }
@@ -651,6 +654,7 @@
             const botNameInput = document.getElementById('botName');
             const botIdInput = document.getElementById('botId');
             const addBusBtn = document.getElementById('addBusBtn');
+            const stopMonitoringBtn = document.getElementById('stopMonitoringBtn');
             const busStopInput = document.getElementById('busStop');
             const busNumberInput = document.getElementById('busNumber');
             const busNoteInput = document.getElementById('busNote');
@@ -701,6 +705,26 @@
                 }
             });
 
+            // 停止监控按钮
+            stopMonitoringBtn.addEventListener('click', async function() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/stop-monitoring`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast('监控已停止');
+                    } else {
+                        showToast(`停止失败: ${result.error || '未知错误'}`);
+                    }
+                } catch (error) {
+                    console.error('Stop monitoring error:', error);
+                    showToast('网络错误，请稍后重试');
+                }
+            });
 
             // Toast提示函数
             function showToast(message) {

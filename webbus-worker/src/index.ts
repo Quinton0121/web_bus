@@ -90,6 +90,10 @@ async function sendTelegramMessage(message: string, botToken: string, chatId: st
   }
 }
 
+// Global monitoring control
+let isMonitoring = false;
+let monitoringController: AbortController | null = null;
+
 // Start continuous bus monitoring
 async function startBusMonitoring(
   stationId: string, 
@@ -98,7 +102,16 @@ async function startBusMonitoring(
   botToken: string, 
   chatId: string
 ): Promise<void> {
+  isMonitoring = true;
+  monitoringController = new AbortController();
+  
   for (let cycle = 1; cycle <= 20; cycle++) {
+    // Check if monitoring was stopped
+    if (!isMonitoring || monitoringController?.signal.aborted) {
+      console.log('Monitoring stopped by user');
+      break;
+    }
+    
     try {
       // Fetch current bus data
       const busData = await fetchBusInfo(stationId);
@@ -126,19 +139,39 @@ async function startBusMonitoring(
       const busInfo = formatBusData(filteredBusData);
       const message = header + busInfo;
 
-      // Send to Telegram
-      await sendTelegramMessage(message, botToken, chatId);
+      // Send to Telegram (only wait for timer after successful send)
+      const success = await sendTelegramMessage(message, botToken, chatId);
       
-      // Wait 40 seconds before next cycle (except for the last one)
-      if (cycle < 20) {
-        await new Promise(resolve => setTimeout(resolve, 40000));
+      if (success) {
+        console.log(`Cycle ${cycle} completed successfully`);
+        
+        // Wait 40 seconds before next cycle (only after successful API request)
+        if (cycle < 20 && isMonitoring && !monitoringController?.signal.aborted) {
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(resolve, 40000);
+            monitoringController?.signal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new Error('Monitoring aborted'));
+            });
+          });
+        }
+      } else {
+        console.error(`Cycle ${cycle} failed to send to Telegram`);
+        // Still continue to next cycle but don't wait if send failed
       }
       
     } catch (error) {
       console.error(`Monitoring cycle ${cycle} failed:`, error);
       // Continue with next cycle even if one fails
+      if (error.message === 'Monitoring aborted') {
+        break;
+      }
     }
   }
+  
+  isMonitoring = false;
+  monitoringController = null;
+  console.log('Bus monitoring completed or stopped');
 }
 
 export default {
@@ -236,6 +269,16 @@ export default {
         const message = header + busInfo;
 
         // Start continuous monitoring (20 cycles, 40 seconds apart)
+        if (isMonitoring) {
+          return new Response(JSON.stringify({ 
+            error: 'Monitoring already in progress. Stop current monitoring first.',
+            isMonitoring: true
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         const monitoringPromise = startBusMonitoring(
           stationId, 
           stationName, 
@@ -247,7 +290,7 @@ export default {
         // Don't wait for completion, return immediately
         return new Response(JSON.stringify({ 
           success: true, 
-          message: 'Started 20-cycle bus monitoring (40s intervals)',
+          message: 'Started 20-cycle bus monitoring (40s after each successful request)',
           cycles: 20,
           interval: 40
         }), {
@@ -261,6 +304,28 @@ export default {
           details: error instanceof Error ? error.message : 'Unknown error'
         }), {
           status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Stop monitoring endpoint
+    if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
+      if (isMonitoring && monitoringController) {
+        monitoringController.abort();
+        isMonitoring = false;
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Bus monitoring stopped'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } else {
+        return new Response(JSON.stringify({ 
+          error: 'No monitoring in progress'
+        }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
