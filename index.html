@@ -468,9 +468,13 @@
                 deleteBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const stopId = card.dataset.id;
+                    // 检查要删除的站点是否是默认站点
+                    const deletedStop = busStops.find(s => s.id === stopId);
+                    const wasDefault = deletedStop && deletedStop.isDefault;
+                    
                     busStops = busStops.filter(s => s.id !== stopId);
                     // 如果删除的是默认项，则设置第一个为默认
-                    if(isDefault && busStops.length > 0) {
+                    if(wasDefault && busStops.length > 0) {
                         busStops[0].isDefault = true;
                     }
                     renderBusStopCards();
