@@ -464,65 +464,6 @@
                     }, 600);
                 });
 
-                // 获取公交信息按钮
-                const fetchBtn = card.querySelector('.fetch-btn');
-                if (fetchBtn) {
-                    fetchBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        console.log('Fetch button clicked for stop:', stop);
-                        
-                        fetchBtn.disabled = true;
-                        fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        
-                        try {
-                            const requestData = {
-                                stationId: stop.name,
-                                stationName: stop.name,
-                                busNumbers: stop.number ? [stop.number] : []
-                            };
-                            console.log('Request data:', requestData);
-                            
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(requestData)
-                            });
-                            
-                            const result = await response.json();
-                            console.log('Response:', result);
-                            
-                            if (result.success) {
-                                showToast(`已发送 ${result.busCount} 条公交信息到Telegram`);
-                            } else {
-                                showToast(`获取失败: ${result.error || '未知错误'}`); 
-                            }
-                        } catch (error) {
-                            console.error('Fetch error:', error);
-                            showToast('网络错误，请稍后重试');
-                        } finally {
-                            fetchBtn.disabled = false;
-                            fetchBtn.innerHTML = '<i class="fas fa-search"></i>';
-                        }
-                    });
-                }
-
-                // 获取公交信息按钮
-                const fetchBtn = card.querySelector('.fetch-btn');
-                if (fetchBtn) {
-                    fetchBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        console.log('Fetch button clicked for stop:', stop);
-                        fetchBtn.disabled = true;
-                        fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        try {
-                            const requestData = { stationId: stop.name, stationName: stop.name, busNumbers: stop.number ? [stop.number] : [] };
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData) });
-                            const result = await response.json();
-                            if (result.success) { showToast(`已发送 ${result.busCount} 条公交信息到Telegram`); } else { showToast(`获取失败: ${result.error || '未知错误'}`); }
-                        } catch (error) { console.error('Fetch error:', error); showToast('网络错误，请稍后重试'); }
-                        finally { fetchBtn.disabled = false; fetchBtn.innerHTML = '<i class="fas fa-search"></i>'; }
-                    });
-                }
                 // 删除按钮
                 const deleteBtn = card.querySelector('.delete-btn');
                 deleteBtn.addEventListener('click', async function(e) {
@@ -593,65 +534,6 @@
                     }, 600);
                 });
 
-                // 获取公交信息按钮
-                const fetchBtn = card.querySelector('.fetch-btn');
-                if (fetchBtn) {
-                    fetchBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        console.log('Fetch button clicked for stop:', stop);
-                        
-                        fetchBtn.disabled = true;
-                        fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        
-                        try {
-                            const requestData = {
-                                stationId: stop.name,
-                                stationName: stop.name,
-                                busNumbers: stop.number ? [stop.number] : []
-                            };
-                            console.log('Request data:', requestData);
-                            
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(requestData)
-                            });
-                            
-                            const result = await response.json();
-                            console.log('Response:', result);
-                            
-                            if (result.success) {
-                                showToast(`已发送 ${result.busCount} 条公交信息到Telegram`);
-                            } else {
-                                showToast(`获取失败: ${result.error || '未知错误'}`); 
-                            }
-                        } catch (error) {
-                            console.error('Fetch error:', error);
-                            showToast('网络错误，请稍后重试');
-                        } finally {
-                            fetchBtn.disabled = false;
-                            fetchBtn.innerHTML = '<i class="fas fa-search"></i>';
-                        }
-                    });
-                }
-
-                // 获取公交信息按钮
-                const fetchBtn = card.querySelector('.fetch-btn');
-                if (fetchBtn) {
-                    fetchBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        console.log('Fetch button clicked for stop:', stop);
-                        fetchBtn.disabled = true;
-                        fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        try {
-                            const requestData = { stationId: stop.name, stationName: stop.name, busNumbers: stop.number ? [stop.number] : [] };
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData) });
-                            const result = await response.json();
-                            if (result.success) { showToast(`已发送 ${result.busCount} 条公交信息到Telegram`); } else { showToast(`获取失败: ${result.error || '未知错误'}`); }
-                        } catch (error) { console.error('Fetch error:', error); showToast('网络错误，请稍后重试'); }
-                        finally { fetchBtn.disabled = false; fetchBtn.innerHTML = '<i class="fas fa-search"></i>'; }
-                    });
-                }
                 // 删除按钮
                 const deleteBtn = card.querySelector('.delete-btn');
                 deleteBtn.addEventListener('click', async function(e) {
@@ -778,48 +660,6 @@
                     toast.classList.remove('show');
                 }, 2000);
             }
-
-                // 获取公交信息按钮
-                const fetchBtn = card.querySelector('.fetch-btn');
-                if (fetchBtn) {
-                    fetchBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        console.log('Fetch button clicked for stop:', stop);
-                        
-                        fetchBtn.disabled = true;
-                        fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        
-                        try {
-                            const requestData = {
-                                stationId: stop.name,
-                                stationName: stop.name,
-                                busNumbers: stop.number ? [stop.number] : []
-                            };
-                            console.log('Request data:', requestData);
-                            
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(requestData)
-                            });
-                            
-                            const result = await response.json();
-                            console.log('Response:', result);
-                            
-                            if (result.success) {
-                                showToast(`已发送 ${result.busCount} 条公交信息到Telegram`);
-                            } else {
-                                showToast(`获取失败: ${result.error || '未知错误'}`); 
-                            }
-                        } catch (error) {
-                            console.error('Fetch error:', error);
-                            showToast('网络错误，请稍后重试');
-                        } finally {
-                            fetchBtn.disabled = false;
-                            fetchBtn.innerHTML = '<i class="fas fa-search"></i>';
-                        }
-                    });
-                }
 
             // 初始化加载
             loadData();
