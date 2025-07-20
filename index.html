@@ -127,7 +127,37 @@
             opacity: 0;
             transition: opacity 0.2s ease;
         }
-        .bot-card:hover .delete-btn, .bus-card:hover .delete-btn {
+        .bus-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .fetch-btn {
+            width: 24px;
+            height: 24px;
+            background: rgba(34, 197, 94, 0.1);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #22c55e;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .fetch-btn:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+        .fetch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .bot-card:hover .delete-btn, .bus-card:hover .bus-actions {
             opacity: 1;
         }
         .default-tag {
@@ -240,7 +270,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666;">
-            v2.3 - Force ID Fix
+            v3.0 - Bus Integration
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -472,8 +502,13 @@
                     </div>
                     <div class="bus-name">${stop.name}</div>
                     <div class="bus-number">公交编号: ${stop.number}</div>
-                    <div class="delete-btn">
-                        <i class="fas fa-times"></i>
+                    <div class="bus-actions">
+                        <button class="fetch-btn" title="获取公交信息">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <div class="delete-btn">
+                            <i class="fas fa-times"></i>
+                        </div>
                     </div>
                 `;
 
