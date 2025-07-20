@@ -71,6 +71,76 @@ function formatBusData(busData: BusData[]): string {
   }).join('\n');
 }
 
+// Send message to Telegram
+async function sendTelegramMessage(message: string, botToken: string, chatId: string): Promise<boolean> {
+  try {
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const response = await fetch(telegramUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message
+      })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Telegram send error:', error);
+    return false;
+  }
+}
+
+// Start continuous bus monitoring
+async function startBusMonitoring(
+  stationId: string, 
+  stationName: string, 
+  busNumbers: string[], 
+  botToken: string, 
+  chatId: string
+): Promise<void> {
+  for (let cycle = 1; cycle <= 20; cycle++) {
+    try {
+      // Fetch current bus data
+      const busData = await fetchBusInfo(stationId);
+      
+      // Filter by specific bus numbers if provided
+      let filteredBusData = busData;
+      if (busNumbers && busNumbers.length > 0 && busData.length > 0) {
+        filteredBusData = busData.filter(bus => 
+          busNumbers.some((num: string) => bus.route_no.includes(num))
+        );
+      }
+
+      // Format the message
+      const timestamp = new Date().toLocaleString('en-US', { 
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      
+      const header = `Update ${cycle}/20 - ${stationName || stationId}\nTime: ${timestamp}\n\n`;
+      const busInfo = formatBusData(filteredBusData);
+      const message = header + busInfo;
+
+      // Send to Telegram
+      await sendTelegramMessage(message, botToken, chatId);
+      
+      // Wait 40 seconds before next cycle (except for the last one)
+      if (cycle < 20) {
+        await new Promise(resolve => setTimeout(resolve, 40000));
+      }
+      
+    } catch (error) {
+      console.error(`Monitoring cycle ${cycle} failed:`, error);
+      // Continue with next cycle even if one fails
+    }
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -110,7 +180,7 @@ export default {
         }
       );
     }
-    // Simple bus fetch endpoint with fallback
+    // Continuous bus monitoring endpoint
     if (request.method === 'POST' && url.pathname === '/api/fetch-bus') {
       try {
         const { stationId, stationName, busNumbers } = await request.json();
@@ -165,32 +235,25 @@ export default {
         
         const message = header + busInfo;
 
-        // Send to Telegram
-        const telegramUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const response = await fetch(telegramUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: env.TELEGRAM_CHAT_ID,
-            text: message
-          })
-        });
+        // Start continuous monitoring (20 cycles, 40 seconds apart)
+        const monitoringPromise = startBusMonitoring(
+          stationId, 
+          stationName, 
+          busNumbers, 
+          env.TELEGRAM_BOT_TOKEN, 
+          env.TELEGRAM_CHAT_ID
+        );
 
-        if (response.ok) {
-          return new Response(JSON.stringify({ 
-            success: true, 
-            message: 'Test message sent to Telegram',
-            busCount: 0
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        } else {
-          return new Response(JSON.stringify({ error: 'Failed to send Telegram message' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
+        // Don't wait for completion, return immediately
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Started 20-cycle bus monitoring (40s intervals)',
+          cycles: 20,
+          interval: 40
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
 
       } catch (error) {
         return new Response(JSON.stringify({ 
