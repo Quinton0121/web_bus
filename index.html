@@ -341,6 +341,22 @@
             // Worker API base URL (update to your deployed Worker URL if needed)
             const API_BASE = 'https://webbus-worker.quinton0121.workers.dev';
 
+            // 修复缺失ID的公交站
+            function fixMissingIds() {
+                let fixed = false;
+                busStops.forEach(stop => {
+                    if (!stop.id) {
+                        stop.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+                        fixed = true;
+                        console.log('Fixed missing ID for stop:', stop);
+                    }
+                });
+                if (fixed) {
+                    console.log('Fixed missing IDs, saving data...');
+                    saveData();
+                }
+            }
+
             // 加载数据
             async function loadData() {
                 try {
@@ -349,6 +365,10 @@
                         const data = await res.json();
                         bots = data.bots || [];
                         busStops = data.busStops || [];
+                        
+                        // Fix any missing IDs
+                        fixMissingIds();
+                        
                         renderBotCards();
                         renderBusStopCards();
                     }
