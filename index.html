@@ -122,6 +122,14 @@
             transition: all 0.3s ease;
             z-index: 10;
         }
+        .fetch-btn-container {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            opacity: 1;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
         .delete-btn {
             width: 24px !important;
             height: 24px !important;
@@ -166,7 +174,8 @@
         .bot-card:hover .delete-btn {
             opacity: 1;
         }
-        .bus-card:hover .bus-actions {
+        .bus-card:hover .bus-actions,
+        .bus-card:hover .fetch-btn-container {
             opacity: 1;
         }
         .default-tag {
@@ -279,7 +288,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v4.5 - CSS Fixed
+            v4.6 - Button Layout
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -510,10 +519,12 @@
                     <div class="bus-name" style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">${stop.name}</div>
                     ${stop.note ? `<div class="bus-note" style="font-size: 10px; color: #10b981; margin-bottom: 2px;">${stop.note}</div>` : ''}
                     <div class="bus-number" style="font-size: 11px; color: #64748b;">${stop.number}</div>
-                    <div class="bus-actions">
+                    <div class="fetch-btn-container">
                         <button class="fetch-btn" title="获取公交信息">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                    <div class="bus-actions">
                         <div class="delete-btn">
                             <i class="fas fa-times"></i>
                         </div>
