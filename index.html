@@ -288,7 +288,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v5.2 - Button Fix
+            v5.3 - Syntax Fix
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -583,10 +583,10 @@
                             fetchBtn.disabled = false;
                             fetchBtn.innerHTML = '<i class="fas fa-search"></i>';
                         }
-                        });
-                    } else {
-                        console.error('Fetch button not found in card');
-                    }
+                    });
+                } else {
+                    console.error('Fetch button not found in card');
+                }
                 }
 
                 // 删除按钮
