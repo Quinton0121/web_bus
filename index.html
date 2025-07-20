@@ -240,7 +240,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666;">
-            v2.1 - Delete Fix
+            v2.2 - Debug & Fix
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -471,8 +471,22 @@
                 deleteBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const stopId = card.dataset.id;
+                    
+                    // Debug logging
+                    console.log('Attempting to delete stop with ID:', stopId);
+                    console.log('Current busStops array:', busStops);
+                    console.log('Stop IDs in array:', busStops.map(s => s.id));
+                    
                     // 检查要删除的站点是否是默认站点
                     const deletedStop = busStops.find(s => s.id === stopId);
+                    console.log('Found stop to delete:', deletedStop);
+                    
+                    if (!deletedStop) {
+                        console.error('Stop not found in array! This is the problem.');
+                        showToast('删除失败：找不到该公交站');
+                        return;
+                    }
+                    
                     const wasDefault = deletedStop && deletedStop.isDefault;
                     
                     busStops = busStops.filter(s => s.id !== stopId);
