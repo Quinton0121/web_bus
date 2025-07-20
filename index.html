@@ -68,17 +68,18 @@
         .bot-card, .bus-card {
             width: 100%;
             height: auto;
-            min-height: 120px;
+            min-height: 80px;
             background-color: white;
-            border-radius: 8px;
-            padding: 16px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            padding: 12px 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
             cursor: pointer;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            text-align: center;
             position: relative;
             overflow: hidden;
         }
@@ -290,7 +291,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v4.0 - Real Bus API
+            v4.1 - Mobile Optimized
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -310,7 +311,7 @@
                     </button>
                     <div class="form-input mt-6">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
-                        <div id="busCardsContainer" class="grid grid-cols-1 gap-2">
+                        <div id="busCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                             <!-- 公交站卡片将在这里动态生成 -->
                         </div>
                     </div>
@@ -352,7 +353,7 @@
                     </button>
                     <div class="form-input mt-6">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">已创建的Bot</h3>
-                        <div id="botCardsContainer" class="grid grid-cols-1 gap-2">
+                        <div id="botCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                             <!-- Bot卡片将在这里动态生成 -->
                         </div>
                     </div>
@@ -514,11 +515,8 @@
 
                 card.innerHTML = `
                     ${isDefault ? '<div class="default-tag">默认</div>' : ''}
-                    <div class="bus-icon">
-                        <i class="fas fa-bus"></i>
-                    </div>
-                    <div class="bus-name">${stop.name}</div>
-                    <div class="bus-number">公交编号: ${stop.number}</div>
+                    <div class="bus-name" style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${stop.name}</div>
+                    <div class="bus-number" style="font-size: 11px; color: #64748b;">${stop.number}</div>
                     <div class="bus-actions">
                         <button class="fetch-btn" title="获取公交信息">
                             <i class="fas fa-search"></i>
