@@ -112,22 +112,6 @@
             color: #64748b;
             text-align: center;
         }
-        .delete-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background-color: #ef4444;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
         .bus-actions {
             position: absolute;
             top: 8px;
@@ -180,6 +164,9 @@
             cursor: not-allowed;
         }
         .bot-card:hover .delete-btn {
+            opacity: 1;
+        }
+        .bus-card:hover .bus-actions {
             opacity: 1;
         }
         .default-tag {
@@ -292,7 +279,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            v4.4 - Always Visible
+            v4.5 - CSS Fixed
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
