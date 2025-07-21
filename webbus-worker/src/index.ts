@@ -90,9 +90,9 @@ async function sendTelegramMessage(message: string, botToken: string, chatId: st
   }
 }
 
-// Global monitoring control
+// Simple monitoring state without persistent controllers
 let isMonitoring = false;
-let monitoringController: AbortController | null = null;
+let monitoringStartTime = 0;
 
 // Start continuous bus monitoring
 async function startBusMonitoring(
@@ -103,11 +103,10 @@ async function startBusMonitoring(
   chatId: string
 ): Promise<void> {
   isMonitoring = true;
-  monitoringController = new AbortController();
   
   for (let cycle = 1; cycle <= 20; cycle++) {
     // Check if monitoring was stopped
-    if (!isMonitoring || monitoringController?.signal.aborted) {
+    if (!isMonitoring) {
       console.log('Monitoring stopped by user');
       break;
     }
@@ -146,14 +145,8 @@ async function startBusMonitoring(
         console.log(`Cycle ${cycle} completed successfully`);
         
         // Wait 40 seconds before next cycle (only after successful API request)
-        if (cycle < 20 && isMonitoring && !monitoringController?.signal.aborted) {
-          await new Promise((resolve, reject) => {
-            const timeout = setTimeout(resolve, 40000);
-            monitoringController?.signal.addEventListener('abort', () => {
-              clearTimeout(timeout);
-              reject(new Error('Monitoring aborted'));
-            });
-          });
+        if (cycle < 20 && isMonitoring) {
+          await new Promise(resolve => setTimeout(resolve, 40000));
         }
       } else {
         console.error(`Cycle ${cycle} failed to send to Telegram`);
@@ -170,7 +163,6 @@ async function startBusMonitoring(
   }
   
   isMonitoring = false;
-  monitoringController = null;
   console.log('Bus monitoring completed or stopped');
 }
 
@@ -268,16 +260,26 @@ export default {
         
         const message = header + busInfo;
 
+        // Check if monitoring is stuck (auto-reset after 30 minutes)
+        const now = Date.now();
+        if (isMonitoring && (now - monitoringStartTime > 30 * 60 * 1000)) {
+          console.log('Auto-resetting stuck monitoring session');
+          isMonitoring = false;
+        }
+        
         // Start continuous monitoring (20 cycles, 40 seconds apart)
         if (isMonitoring) {
           return new Response(JSON.stringify({ 
             error: 'Monitoring already in progress. Stop current monitoring first.',
-            isMonitoring: true
+            isMonitoring: true,
+            timeRemaining: Math.max(0, 30 * 60 * 1000 - (now - monitoringStartTime))
           }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
+        
+        monitoringStartTime = now;
 
         const monitoringPromise = startBusMonitoring(
           stationId, 
@@ -312,32 +314,22 @@ export default {
     // Stop monitoring endpoint
     if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
       try {
-        if (isMonitoring && monitoringController) {
-          monitoringController.abort();
-          isMonitoring = false;
-          return new Response(JSON.stringify({ 
-            success: true, 
-            message: 'Bus monitoring stopped'
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        } else {
-          return new Response(JSON.stringify({ 
-            success: false,
-            error: 'No monitoring in progress'
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-      } catch (error) {
+        isMonitoring = false;
         return new Response(JSON.stringify({ 
-          success: false,
-          error: 'Failed to stop monitoring',
+          success: true, 
+          message: 'Bus monitoring stopped'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        isMonitoring = false;
+        return new Response(JSON.stringify({ 
+          success: true,
+          message: 'Monitoring state reset',
           details: error instanceof Error ? error.message : 'Unknown error'
         }), {
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
