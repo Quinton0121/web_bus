@@ -17,9 +17,13 @@ interface BusData {
 // Fetch bus information from the API
 async function fetchBusInfo(stationId: string): Promise<BusData[]> {
   try {
-    const timestamp = Math.floor(Date.now() / 1000);
     // Try direct API first, then fallback to proxy
-    const apiUrl = `https://motransportinfo.com/its/getStopInfo.php?ref=1&id=${stationId}&ts=${timestamp}`;
+    const apiUrl = `https://motransportinfo.com/its/getStopInfo.php?ref=1&id=${stationId}`;
+    
+    console.log('=== BUS API REQUEST ===');
+    console.log('Station ID:', stationId);
+    console.log('Full API URL:', apiUrl);
+    console.log('========================');
     
     console.log('Fetching bus data from:', apiUrl);
     
