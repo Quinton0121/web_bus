@@ -252,43 +252,34 @@ export default {
         console.log('Sending bus update to Telegram...');
         const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
 
-        // Check if monitoring is stuck (auto-reset after 30 minutes)
-        const now = Date.now();
-        if (isMonitoring && (now - monitoringStartTime > 30 * 60 * 1000)) {
-          console.log('Auto-resetting stuck monitoring session');
-          isMonitoring = false;
+        // Store monitoring request in KV for cron processing
+        const monitoringData = {
+          stationId,
+          stationName,
+          busNumbers,
+          startTime: Date.now(),
+          cycleCount: 0,
+          maxCycles: 20,
+          interval: 40000, // 40 seconds
+          active: true
+        };
+        
+        const monitoringKey = `monitoring_${stationId}_${Date.now()}`;
+        await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+        
+        // Send first message immediately
+        if (success) {
+          console.log('First message sent, cron will handle remaining cycles');
         }
         
-        // Start continuous monitoring (20 cycles, 40 seconds apart)
-        if (isMonitoring) {
-          return new Response(JSON.stringify({ 
-            error: 'Monitoring already in progress. Stop current monitoring first.',
-            isMonitoring: true,
-            timeRemaining: Math.max(0, 30 * 60 * 1000 - (now - monitoringStartTime))
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-        
-        monitoringStartTime = now;
-
-        const monitoringPromise = startBusMonitoring(
-          stationId, 
-          stationName, 
-          busNumbers, 
-          env.TELEGRAM_BOT_TOKEN, 
-          env.TELEGRAM_CHAT_ID
-        );
-
-        // Don't wait for completion, return immediately
         return new Response(JSON.stringify({ 
-          success: true, 
-          message: 'Started 20-cycle bus monitoring (40s after each successful request)',
-          cycles: 20,
-          interval: 40
+          success: success, 
+          message: success ? 'Started server-side monitoring - 20 cycles every 40 seconds' : 'Failed to start monitoring',
+          monitoringKey: monitoringKey,
+          busData: filteredBusData,
+          timestamp: timestamp
         }), {
-          status: 200,
+          status: success ? 200 : 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
@@ -329,4 +320,87 @@ export default {
 
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
+
+  // Cron trigger for monitoring
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+    console.log('Cron trigger executed at:', new Date().toISOString());
+    
+    try {
+      // Get all monitoring sessions
+      const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
+      
+      for (const key of keys) {
+        const monitoringDataStr = await env.webbusdb.get(key.name);
+        if (!monitoringDataStr) continue;
+        
+        const monitoringData = JSON.parse(monitoringDataStr);
+        
+        // Check if monitoring is still active
+        if (!monitoringData.active) {
+          await env.webbusdb.delete(key.name);
+          continue;
+        }
+        
+        // Check if we've reached max cycles
+        if (monitoringData.cycleCount >= monitoringData.maxCycles) {
+          console.log(`Monitoring completed for ${monitoringData.stationId}`);
+          await env.webbusdb.delete(key.name);
+          continue;
+        }
+        
+        // Check if enough time has passed for next cycle
+        const timeSinceStart = Date.now() - monitoringData.startTime;
+        const expectedCycles = Math.floor(timeSinceStart / monitoringData.interval);
+        
+        if (expectedCycles > monitoringData.cycleCount) {
+          // Time for next cycle
+          try {
+            const busData = await fetchBusInfo(monitoringData.stationId);
+            
+            // Filter by bus numbers
+            let filteredBusData = busData;
+            if (monitoringData.busNumbers && monitoringData.busNumbers.length > 0) {
+              filteredBusData = busData.filter(bus => 
+                monitoringData.busNumbers.some((num: string) => bus.route_no.includes(num))
+              );
+            }
+            
+            // Format message
+            const cycleNum = monitoringData.cycleCount + 1;
+            const timestamp = new Date().toLocaleString('en-US', { 
+              timeZone: 'Asia/Shanghai',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            });
+            
+            const header = `Bus Update ${cycleNum}/20 - ${monitoringData.stationName || monitoringData.stationId}\nTime: ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}\n\n`;
+            const busInfo = formatBusData(filteredBusData);
+            const message = header + busInfo;
+            
+            // Send to Telegram
+            const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN!, env.TELEGRAM_CHAT_ID!);
+            
+            if (success) {
+              console.log(`Cycle ${cycleNum} sent successfully for ${monitoringData.stationId}`);
+              
+              // Update cycle count
+              monitoringData.cycleCount = cycleNum;
+              await env.webbusdb.put(key.name, JSON.stringify(monitoringData));
+            } else {
+              console.error(`Failed to send cycle ${cycleNum} for ${monitoringData.stationId}`);
+            }
+            
+          } catch (error) {
+            console.error(`Error in monitoring cycle for ${monitoringData.stationId}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Cron execution error:', error);
+    }
+  }
 };
