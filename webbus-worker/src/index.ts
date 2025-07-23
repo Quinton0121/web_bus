@@ -12,6 +12,7 @@ interface BusData {
   route_no: string;
   dir: number;
   lastbus: number;
+  remaining?: number; // Stops away from the station
 }
 
 // Fetch bus information from the API
@@ -51,6 +52,17 @@ async function fetchBusInfo(stationId: string): Promise<BusData[]> {
     
     try {
       const data: BusData[] = JSON.parse(responseText);
+      console.log('=== PARSED API DATA ===');
+      console.log('Raw data:', JSON.stringify(data, null, 2));
+      console.log('Number of buses:', data.length);
+      data.forEach((bus, index) => {
+        console.log(`Bus ${index + 1}:`, {
+          route_no: bus.route_no,
+          dir: bus.dir,
+          lastbus: bus.lastbus
+        });
+      });
+      console.log('=====================');
       return Array.isArray(data) ? data : [];
     } catch (parseError) {
       console.error('Failed to parse JSON response:', parseError);
@@ -62,17 +74,74 @@ async function fetchBusInfo(stationId: string): Promise<BusData[]> {
   }
 }
 
-// Format bus data for display
+// Format bus data for display in "bus 11: 3 -> 7" format (stops away)
 function formatBusData(busData: BusData[]): string {
   if (!busData || busData.length === 0) {
     return 'No bus information available at this station';
   }
 
-  return busData.map(bus => {
-    const direction = bus.dir === 0 ? 'Outbound' : 'Inbound';
-    const lastBusInfo = bus.lastbus === -1 ? 'Running' : `Last bus: ${bus.lastbus} min`;
-    return `Bus ${bus.route_no} (${direction}): ${lastBusInfo}`;
-  }).join('\n');
+  // Group buses by route number and direction
+  const groupedBuses = busData.reduce((acc, bus) => {
+    const key = `${bus.route_no}_${bus.dir}`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(bus);
+    return acc;
+  }, {} as Record<string, BusData[]>);
+
+  const results: string[] = [];
+  
+  for (const [key, buses] of Object.entries(groupedBuses)) {
+    const [routeNo, dirStr] = key.split('_');
+    const direction = dirStr === '0' ? 'Out' : 'In';
+    
+    // Sort buses by remaining stops (closest first)
+    const sortedBuses = buses.sort((a, b) => {
+      // If remaining data is available, use it
+      if (a.remaining !== undefined && b.remaining !== undefined) {
+        return a.remaining - b.remaining;
+      }
+      // Fallback to time-based sorting
+      if (a.lastbus === -1 && b.lastbus === -1) return 0;
+      if (a.lastbus === -1) return -1;
+      if (b.lastbus === -1) return 1;
+      return a.lastbus - b.lastbus;
+    });
+    
+    if (sortedBuses.length === 1) {
+      const bus = sortedBuses[0];
+      if (bus.remaining !== undefined) {
+        // Use stops format
+        const stops = Math.round(bus.remaining * 10) / 10; // Round to 1 decimal
+        results.push(`Bus ${routeNo} (${direction}): ${stops} stops`);
+      } else if (bus.lastbus === -1) {
+        results.push(`Bus ${routeNo} (${direction}): Running`);
+      } else {
+        results.push(`Bus ${routeNo} (${direction}): ${bus.lastbus}min`);
+      }
+    } else {
+      // Multiple buses - show in "bus 11: 3 -> 7" format
+      const distances = sortedBuses.map(bus => {
+        if (bus.remaining !== undefined) {
+          const stops = Math.round(bus.remaining * 10) / 10;
+          return stops.toString();
+        } else if (bus.lastbus === -1) {
+          return 'Now';
+        } else {
+          return `${bus.lastbus}min`;
+        }
+      });
+      
+      if (distances.length >= 2) {
+        results.push(`Bus ${routeNo} (${direction}): ${distances[0]} -> ${distances[1]}`);
+      } else {
+        results.push(`Bus ${routeNo} (${direction}): ${distances[0]}`);
+      }
+    }
+  }
+  
+  return results.join('\n');
 }
 
 // Send message to Telegram
@@ -297,22 +366,38 @@ export default {
     // Stop monitoring endpoint
     if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
       try {
-        isMonitoring = false;
+        // Stop all active monitoring sessions in KV
+        const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
+        let stoppedCount = 0;
+        
+        for (const key of keys) {
+          const monitoringDataStr = await env.webbusdb.get(key.name);
+          if (monitoringDataStr) {
+            const monitoringData = JSON.parse(monitoringDataStr);
+            if (monitoringData.active) {
+              // Delete the monitoring session completely
+              await env.webbusdb.delete(key.name);
+              console.log(`Deleted monitoring session: ${key.name}`);
+              stoppedCount++;
+            }
+          }
+        }
+        
         return new Response(JSON.stringify({ 
           success: true, 
-          message: 'Bus monitoring stopped'
+          message: `Stopped ${stoppedCount} active monitoring session(s)`,
+          stoppedCount: stoppedCount
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       } catch (error) {
-        isMonitoring = false;
         return new Response(JSON.stringify({ 
-          success: true,
-          message: 'Monitoring state reset',
+          success: false,
+          message: 'Failed to stop monitoring',
           details: error instanceof Error ? error.message : 'Unknown error'
         }), {
-          status: 200,
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
@@ -337,6 +422,7 @@ export default {
         
         // Check if monitoring is still active
         if (!monitoringData.active) {
+          console.log(`Deleting inactive monitoring session: ${key.name}`);
           await env.webbusdb.delete(key.name);
           continue;
         }

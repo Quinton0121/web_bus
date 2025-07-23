@@ -715,13 +715,25 @@
 
             // 停止监控按钮
             stopMonitoringBtn.addEventListener('click', async function() {
-                if (isMonitoring) {
-                    isMonitoring = false;
-                    currentMonitoringStop = null;
-                    showToast('正在停止监控...');
-                    console.log('User requested to stop monitoring');
-                } else {
-                    showToast('当前没有运行的监控任务');
+                try {
+                    showToast('正在停止服务器端监控...');
+                    
+                    const response = await fetch(`${API_BASE}/api/stop-monitoring`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast(result.message);
+                        console.log('Server-side monitoring stopped:', result.stoppedCount);
+                    } else {
+                        showToast(`停止失败: ${result.message}`);
+                    }
+                } catch (error) {
+                    console.error('Stop monitoring error:', error);
+                    showToast('网络错误，请稍后重试');
                 }
             });
 
