@@ -392,6 +392,8 @@
             // 数据存储
             let bots = [];
             let busStops = [];
+            let isMonitoring = false;
+            let currentMonitoringStop = null;
 
             // Worker API base URL (update to your deployed Worker URL if needed)
             const API_BASE = 'https://webbus-worker.quinton0121.workers.dev';
@@ -609,10 +611,14 @@
                                 }
                             }
                             
-                            showToast('监控完成！已发送20次更新');
+                            if (isMonitoring) {
+                                showToast('监控完成！已发送20次更新');
+                            }
                         } catch (error) {
                             showToast('网络错误，请稍后重试');
                         } finally {
+                            isMonitoring = false;
+                            currentMonitoringStop = null;
                             fetchBtn.disabled = false;
                             fetchBtn.innerHTML = '<i class="fas fa-search"></i>';
                         }
@@ -742,22 +748,13 @@
 
             // 停止监控按钮
             stopMonitoringBtn.addEventListener('click', async function() {
-                try {
-                    const response = await fetch(`${API_BASE}/api/stop-monitoring`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showToast('监控已停止');
-                    } else {
-                        showToast(`停止失败: ${result.error || '未知错误'}`);
-                    }
-                } catch (error) {
-                    console.error('Stop monitoring error:', error);
-                    showToast('网络错误，请稍后重试');
+                if (isMonitoring) {
+                    isMonitoring = false;
+                    currentMonitoringStop = null;
+                    showToast('正在停止监控...');
+                    console.log('User requested to stop monitoring');
+                } else {
+                    showToast('当前没有运行的监控任务');
                 }
             });
 
