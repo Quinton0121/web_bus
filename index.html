@@ -563,9 +563,17 @@
                         fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                         try {
                             // Start client-side monitoring loop (20 cycles, 40 seconds apart)
+                            isMonitoring = true;
+                            currentMonitoringStop = stop.id;
                             showToast('开始监控公交信息，将发送20次更新到Telegram');
                             
                             for (let cycle = 1; cycle <= 20; cycle++) {
+                                // Check if monitoring was stopped
+                                if (!isMonitoring) {
+                                    console.log('Monitoring stopped by user');
+                                    showToast('监控已停止');
+                                    break;
+                                }
                                 try {
                                     console.log(`Starting cycle ${cycle}/20`);
                                     
