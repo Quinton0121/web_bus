@@ -567,7 +567,7 @@
                             // Start client-side monitoring loop (20 cycles, 40 seconds apart)
                             isMonitoring = true;
                             currentMonitoringStop = stop.id;
-                            showToast('开始监控公交信息，将发送20次更新到Telegram');
+                            showToast('开始监控公交信息，将发送20次更新到Telegram (测试模式: 10秒间隔)');
                             
                             for (let cycle = 1; cycle <= 20; cycle++) {
                                 // Check if monitoring was stopped
@@ -599,11 +599,11 @@
                                         showToast(`第${cycle}次请求失败: ${result.message}`);
                                     }
                                     
-                                    // Always wait 40 seconds before next cycle (except for last cycle)
+                                    // Always wait 10 seconds before next cycle (except for last cycle) - FOR TESTING
                                     if (cycle < 20) {
-                                        console.log(`Waiting 40 seconds before cycle ${cycle + 1}...`);
-                                        showToast(`等待40秒后发送第${cycle + 1}次更新...`);
-                                        await new Promise(resolve => setTimeout(resolve, 40000));
+                                        console.log(`Waiting 10 seconds before cycle ${cycle + 1}...`);
+                                        showToast(`等待10秒后发送第${cycle + 1}次更新...`);
+                                        await new Promise(resolve => setTimeout(resolve, 10000));
                                     }
                                 } catch (cycleError) {
                                     console.error(`Cycle ${cycle} error:`, cycleError);
