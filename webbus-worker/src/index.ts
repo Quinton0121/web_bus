@@ -260,7 +260,7 @@ export default {
           startTime: Date.now(),
           cycleCount: 0,
           maxCycles: 20,
-          interval: 40000, // 40 seconds
+          interval: 10000, // 10 seconds - FOR TESTING
           active: true
         };
         

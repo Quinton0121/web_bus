@@ -578,7 +578,7 @@
                             
                             const result = await response.json();
                             if (result.success) {
-                                showToast('已启动服务器端监控 - 20次更新，每40秒一次');
+                                showToast('已启动服务器端监控 - 20次更新，每10秒一次 (测试模式)');
                                 console.log('Server-side monitoring started:', result.monitoringKey);
                             } else {
                                 showToast(`启动失败: ${result.message}`);
