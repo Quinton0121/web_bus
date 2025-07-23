@@ -584,15 +584,16 @@
                                     if (result.success) {
                                         console.log(`Cycle ${cycle} completed successfully`);
                                         showToast(`第${cycle}/20次更新已发送`);
-                                        
-                                        // Wait 40 seconds before next cycle (except for last cycle)
-                                        if (cycle < 20) {
-                                            console.log(`Waiting 40 seconds before cycle ${cycle + 1}...`);
-                                            await new Promise(resolve => setTimeout(resolve, 40000));
-                                        }
                                     } else {
-                                        console.error(`Cycle ${cycle} failed:`, result.error);
-                                        showToast(`第${cycle}次请求失败: ${result.error}`);
+                                        console.error(`Cycle ${cycle} failed:`, result.message);
+                                        showToast(`第${cycle}次请求失败: ${result.message}`);
+                                    }
+                                    
+                                    // Always wait 40 seconds before next cycle (except for last cycle)
+                                    if (cycle < 20) {
+                                        console.log(`Waiting 40 seconds before cycle ${cycle + 1}...`);
+                                        showToast(`等待40秒后发送第${cycle + 1}次更新...`);
+                                        await new Promise(resolve => setTimeout(resolve, 40000));
                                     }
                                 } catch (cycleError) {
                                     console.error(`Cycle ${cycle} error:`, cycleError);
