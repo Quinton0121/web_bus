@@ -221,16 +221,9 @@ export default {
           });
         }
 
-        // Try to fetch real bus information
-        let busData: BusData[] = [];
-        let busApiWorking = true;
-        
-        try {
-          busData = await fetchBusInfo(stationId);
-        } catch (busError) {
-          console.error('Bus API failed:', busError);
-          busApiWorking = false;
-        }
+        // Fetch real bus information (single call)
+        console.log('Making single bus API call...');
+        const busData = await fetchBusInfo(stationId);
         
         // Filter by specific bus numbers if provided
         let filteredBusData = busData;
@@ -247,22 +240,17 @@ export default {
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          second: '2-digit'
         });
         
-        const header = `Station: ${stationName || stationId}\nTime: ${timestamp}\n\n`;
-        
-        let busInfo: string;
-        if (!busApiWorking) {
-          busInfo = `Bus API is currently unavailable.\nStation: ${stationName || stationId}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}\n\nPlease try again later.`;
-        } else {
-          busInfo = formatBusData(filteredBusData);
-          if (busNumbers && busNumbers.length > 0 && filteredBusData.length === 0 && busData.length > 0) {
-            busInfo += `\n\nNote: No buses found for numbers ${busNumbers.join(', ')}\nAll available buses:\n${formatBusData(busData)}`;
-          }
-        }
-        
+        const header = `Bus Update - ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}\n\n`;
+        const busInfo = formatBusData(filteredBusData);
         const message = header + busInfo;
+        
+        // Send to Telegram
+        console.log('Sending bus update to Telegram...');
+        const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
 
         // Check if monitoring is stuck (auto-reset after 30 minutes)
         const now = Date.now();

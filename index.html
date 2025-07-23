@@ -562,21 +562,45 @@
                         fetchBtn.disabled = true;
                         fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                         try {
-                            const response = await fetch(`${API_BASE}/api/fetch-bus`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    stationId: stop.name,
-                                    stationName: stop.name,
-                                    busNumbers: stop.number ? [stop.number] : []
-                                })
-                            });
-                            const result = await response.json();
-                            if (result.success) {
-                                showToast(`已启动20次连续监控 (成功请求后等待40秒)`);
-                            } else {
-                                showToast(`获取失败: ${result.error || '未知错误'}`);
+                            // Start client-side monitoring loop (20 cycles, 40 seconds apart)
+                            showToast('开始监控公交信息，将发送20次更新到Telegram');
+                            
+                            for (let cycle = 1; cycle <= 20; cycle++) {
+                                try {
+                                    console.log(`Starting cycle ${cycle}/20`);
+                                    
+                                    const response = await fetch(`${API_BASE}/api/fetch-bus`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            stationId: stop.name,
+                                            stationName: stop.name,
+                                            busNumbers: stop.number ? [stop.number] : [],
+                                            cycle: cycle
+                                        })
+                                    });
+                                    
+                                    const result = await response.json();
+                                    if (result.success) {
+                                        console.log(`Cycle ${cycle} completed successfully`);
+                                        showToast(`第${cycle}/20次更新已发送`);
+                                        
+                                        // Wait 40 seconds before next cycle (except for last cycle)
+                                        if (cycle < 20) {
+                                            console.log(`Waiting 40 seconds before cycle ${cycle + 1}...`);
+                                            await new Promise(resolve => setTimeout(resolve, 40000));
+                                        }
+                                    } else {
+                                        console.error(`Cycle ${cycle} failed:`, result.error);
+                                        showToast(`第${cycle}次请求失败: ${result.error}`);
+                                    }
+                                } catch (cycleError) {
+                                    console.error(`Cycle ${cycle} error:`, cycleError);
+                                    showToast(`第${cycle}次请求出错`);
+                                }
                             }
+                            
+                            showToast('监控完成！已发送20次更新');
                         } catch (error) {
                             showToast('网络错误，请稍后重试');
                         } finally {
