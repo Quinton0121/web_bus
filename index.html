@@ -572,7 +572,7 @@
                                 body: JSON.stringify({
                                     stationId: stop.name,
                                     stationName: stop.name,
-                                    busNumbers: stop.number ? [stop.number] : []
+                                    busNumbers: stop.busNumbers || (stop.number ? [stop.number] : [])
                                 })
                             });
                             

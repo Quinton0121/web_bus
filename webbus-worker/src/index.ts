@@ -13,16 +13,19 @@ interface BusData {
   dir: number;
   lastbus: number;
   remaining?: number; // Stops away from the station
+  [key: string]: any; // For nested bus data like "0", "1", etc.
 }
 
 // Fetch bus information from the API
 async function fetchBusInfo(stationId: string): Promise<BusData[]> {
   try {
     // Try direct API first, then fallback to proxy
-    const apiUrl = `https://motransportinfo.com/its/getStopInfo.php?ref=1&id=${stationId}`;
+    const timestamp = Date.now();
+    const apiUrl = `https://motransportinfo.com/its/getStopInfo.php?ref=1&id=${stationId}&_t=${timestamp}`;
     
     console.log('=== BUS API REQUEST ===');
     console.log('Station ID:', stationId);
+    console.log('Timestamp:', new Date(timestamp).toISOString());
     console.log('Full API URL:', apiUrl);
     console.log('========================');
     
@@ -30,7 +33,9 @@ async function fetchBusInfo(stationId: string): Promise<BusData[]> {
     
     const response = await fetch(apiUrl, {
       headers: {
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         'User-Agent': 'Mozilla/5.0 (compatible; WebBusWorker/1.0)',
       },
     });
@@ -55,15 +60,63 @@ async function fetchBusInfo(stationId: string): Promise<BusData[]> {
       console.log('=== PARSED API DATA ===');
       console.log('Raw data:', JSON.stringify(data, null, 2));
       console.log('Number of buses:', data.length);
-      data.forEach((bus, index) => {
+      
+      // Process and extract ALL buses from nested objects
+      const processedData: BusData[] = [];
+      
+      data.forEach(bus => {
+        // Check if there are nested bus objects with remaining data
+        const nestedBuses: BusData[] = [];
+        
+        for (const key in bus) {
+          if (!isNaN(Number(key)) && typeof bus[key] === 'object' && bus[key].remaining !== undefined) {
+            nestedBuses.push({
+              route_no: bus.route_no,
+              dir: bus.dir,
+              lastbus: bus.lastbus,
+              remaining: bus[key].remaining
+            });
+            console.log(`Found bus ${bus.route_no} #${key}: ${bus[key].remaining} stops away`);
+          }
+        }
+        
+        if (nestedBuses.length > 0) {
+          // Add all nested buses with remaining data
+          processedData.push(...nestedBuses);
+        } else {
+          // Add the original bus without remaining data
+          processedData.push({
+            route_no: bus.route_no,
+            dir: bus.dir,
+            lastbus: bus.lastbus
+          });
+        }
+      });
+      
+      console.log('=== PROCESSED DATA ===');
+      console.log(`Total processed buses: ${processedData.length}`);
+      processedData.forEach((bus, index) => {
         console.log(`Bus ${index + 1}:`, {
           route_no: bus.route_no,
           dir: bus.dir,
-          lastbus: bus.lastbus
+          lastbus: bus.lastbus,
+          remaining: bus.remaining
         });
       });
+      
+      // Check for duplicate remaining values
+      const remainingValues = processedData.filter(b => b.remaining !== undefined).map(b => b.remaining);
+      if (remainingValues.length > 1) {
+        console.log('Remaining values found:', remainingValues);
+        const uniqueValues = [...new Set(remainingValues)];
+        console.log('Unique remaining values:', uniqueValues);
+        if (uniqueValues.length !== remainingValues.length) {
+          console.log('WARNING: Duplicate remaining values detected!');
+        }
+      }
       console.log('=====================');
-      return Array.isArray(data) ? data : [];
+      
+      return Array.isArray(processedData) ? processedData : [];
     } catch (parseError) {
       console.error('Failed to parse JSON response:', parseError);
       throw new Error('Invalid response format from bus API');
@@ -298,8 +351,10 @@ export default {
         let filteredBusData = busData;
         if (busNumbers && busNumbers.length > 0 && busData.length > 0) {
           filteredBusData = busData.filter(bus => 
-            busNumbers.some((num: string) => bus.route_no.includes(num))
+            busNumbers.some((num: string) => bus.route_no === num.trim())
           );
+          console.log(`Filtering for buses: ${busNumbers.join(', ')}`);
+          console.log(`Found ${filteredBusData.length} matching buses out of ${busData.length} total`);
         }
 
         // Format the message
@@ -447,8 +502,10 @@ export default {
             let filteredBusData = busData;
             if (monitoringData.busNumbers && monitoringData.busNumbers.length > 0) {
               filteredBusData = busData.filter(bus => 
-                monitoringData.busNumbers.some((num: string) => bus.route_no.includes(num))
+                monitoringData.busNumbers.some((num: string) => bus.route_no === num.trim())
               );
+              console.log(`Cron filtering for buses: ${monitoringData.busNumbers.join(', ')}`);
+              console.log(`Cron found ${filteredBusData.length} matching buses out of ${busData.length} total`);
             }
             
             // Format message
