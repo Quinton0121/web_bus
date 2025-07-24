@@ -292,9 +292,25 @@
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
+                <!-- 已添加的公交站 - 最重要，放在最顶部 -->
+                <div class="form-section">
+                    <h2 class="form-title">已添加的公交站</h2>
+                    <div id="busCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        <!-- 公交站卡片将在这里动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 停止监控按钮 - 第二重要 -->
+                <div class="form-section">
+                    <button id="stopMonitoringBtn" class="w-full bg-red-600 hover:bg-red-700 text-white text-lg font-medium">
+                        <i class="fas fa-stop mr-2"></i>
+                        停止监控
+                    </button>
+                </div>
+
                 <!-- 公交站配置区 -->
                 <div class="form-section">
-                    <h2 class="form-title">公交站配置</h2>
+                    <h2 class="form-title">添加新公交站</h2>
                     <div class="form-input">
                         <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称</label>
                         <input type="text" id="busStop" placeholder="请输入公交站名称">
@@ -308,17 +324,9 @@
                         <input type="text" id="busNote" placeholder="例如: 中环站, 机场站等">
                     </div>
                     <button id="addBusBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        <i class="fas fa-plus mr-2"></i>
                         添加公交站
                     </button>
-                    <button id="stopMonitoringBtn" class="w-full mt-2 bg-red-600 hover:bg-red-700 text-white text-sm">
-                        停止监控
-                    </button>
-                    <div class="form-input mt-6">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">已添加的公交站</h3>
-                        <div id="busCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            <!-- 公交站卡片将在这里动态生成 -->
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 通知设置区 -->
