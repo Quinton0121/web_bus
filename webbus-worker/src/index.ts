@@ -369,7 +369,7 @@ export default {
         });
         
         const busInfo = formatBusData(filteredBusData);
-        const footer = `\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
+        const footer = `\n------------------------------\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
         const message = busInfo + footer;
         
         // Send to Telegram
@@ -521,7 +521,7 @@ export default {
             });
             
             const busInfo = formatBusData(filteredBusData);
-            const footer = `\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
+            const footer = `\n------------------------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
             const message = busInfo + footer;
             
             // Send to Telegram
