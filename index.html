@@ -761,8 +761,78 @@
                 }, 2000);
             }
 
+            // 时间滑块更新函数
+            function updateTimeDisplay() {
+                const timeSlider = document.getElementById('notifyTime');
+                const timeValue = document.getElementById('timeValue');
+                const timePeriod = document.getElementById('timePeriod');
+                
+                const minutes = parseInt(timeSlider.value);
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+                
+                timeValue.textContent = timeString;
+                timePeriod.textContent = hours < 12 ? '上午' : '下午';
+                
+                // 保存设置
+                saveMorningSettings();
+            }
+
+            // 保存晨间通知设置
+            async function saveMorningSettings() {
+                const notifyTime = document.getElementById('notifyTime').value;
+                const notifyEnabled = document.getElementById('notifySwitch').checked;
+                
+                const settings = {
+                    morningNotification: {
+                        enabled: notifyEnabled,
+                        time: parseInt(notifyTime), // 分钟数
+                        stationId: 'T408',
+                        busNumbers: ['11', '39']
+                    }
+                };
+                
+                try {
+                    const response = await fetch('/api/save-morning-settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+                    
+                    if (response.ok) {
+                        console.log('Morning settings saved');
+                    }
+                } catch (error) {
+                    console.error('Failed to save morning settings:', error);
+                }
+            }
+
+            // 加载晨间通知设置
+            async function loadMorningSettings() {
+                try {
+                    const response = await fetch('/api/load-morning-settings');
+                    if (response.ok) {
+                        const settings = await response.json();
+                        if (settings.morningNotification) {
+                            document.getElementById('notifyTime').value = settings.morningNotification.time || 540;
+                            document.getElementById('notifySwitch').checked = settings.morningNotification.enabled || false;
+                            updateTimeDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load morning settings:', error);
+                }
+            }
+
+            // 绑定事件监听器
+            document.getElementById('notifyTime').addEventListener('input', updateTimeDisplay);
+            document.getElementById('notifySwitch').addEventListener('change', saveMorningSettings);
+
             // 初始化加载
             loadData();
+            loadMorningSettings();
+            updateTimeDisplay();
         });
     </script>
 </body>

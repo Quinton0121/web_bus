@@ -292,6 +292,82 @@ async function startBusMonitoring(
   console.log('Bus monitoring completed or stopped');
 }
 
+// Handle morning notifications (Monday to Friday)
+async function handleMorningNotifications(env: Env): Promise<void> {
+  try {
+    // Get morning settings
+    const settingsStr = await env.webbusdb.get('morningSettings');
+    if (!settingsStr) return;
+    
+    const settings = JSON.parse(settingsStr);
+    if (!settings.morningNotification?.enabled) return;
+    
+    // Check if it's a weekday (Monday = 1, Friday = 5)
+    const now = new Date();
+    const hongKongTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
+    const dayOfWeek = hongKongTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      console.log('Weekend - skipping morning notification');
+      return;
+    }
+    
+    // Check if it's the right time (within 1 minute of target time)
+    const currentMinutes = hongKongTime.getHours() * 60 + hongKongTime.getMinutes();
+    const targetMinutes = settings.morningNotification.time;
+    
+    if (Math.abs(currentMinutes - targetMinutes) > 1) {
+      return; // Not the right time
+    }
+    
+    // Check if we already sent notification today
+    const today = hongKongTime.toDateString();
+    const lastSentStr = await env.webbusdb.get('lastMorningNotification');
+    if (lastSentStr === today) {
+      console.log('Morning notification already sent today');
+      return;
+    }
+    
+    console.log('Sending morning notification for T408, buses 11,39');
+    
+    // Fetch bus data for T408
+    const busData = await fetchBusInfo('T408');
+    const filteredBusData = busData.filter(bus => 
+      ['11', '39'].includes(bus.route_no)
+    );
+    
+    // Format message
+    const timestamp = hongKongTime.toLocaleString('en-US', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    const busInfo = formatBusData(filteredBusData);
+    const footer = `\n---------------\nStation: T408\nTime: ${timestamp}\nMorning Update: 11, 39`;
+    const message = `Good Morning Bus Update\n\n${busInfo}${footer}`;
+    
+    // Send to Telegram
+    if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+      const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
+      
+      if (success) {
+        // Mark as sent today
+        await env.webbusdb.put('lastMorningNotification', today);
+        console.log('Morning notification sent successfully');
+      } else {
+        console.error('Failed to send morning notification');
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error in morning notification:', error);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -458,6 +534,39 @@ export default {
       }
     }
 
+    // Save morning notification settings
+    if (request.method === 'POST' && url.pathname === '/api/save-morning-settings') {
+      try {
+        const settings = await request.json();
+        await env.webbusdb.put('morningSettings', JSON.stringify(settings));
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to save settings' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Load morning notification settings
+    if (request.method === 'GET' && url.pathname === '/api/load-morning-settings') {
+      try {
+        const settings = await env.webbusdb.get('morningSettings');
+        return new Response(settings || '{}', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to load settings' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
 
@@ -466,6 +575,9 @@ export default {
     console.log('Cron trigger executed at:', new Date().toISOString());
     
     try {
+      // Check for morning notifications first (every minute)
+      await handleMorningNotifications(env);
+      
       // Get all monitoring sessions
       const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
       
