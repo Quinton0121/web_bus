@@ -304,8 +304,8 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     
     // Check if it's a weekday (Monday = 1, Friday = 5)
     const now = new Date();
-    const hongKongTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
-    const dayOfWeek = hongKongTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const macauTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Macau"}));
+    const dayOfWeek = macauTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
     if (!forceTest && (dayOfWeek === 0 || dayOfWeek === 6)) {
       console.log('Weekend - skipping morning notification');
@@ -313,10 +313,10 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     }
     
     // Check if it's the right time (within 2 minutes of target time for better reliability)
-    const currentMinutes = hongKongTime.getHours() * 60 + hongKongTime.getMinutes();
+    const currentMinutes = macauTime.getHours() * 60 + macauTime.getMinutes();
     const targetMinutes = settings.morningNotification.time;
     
-    console.log(`Morning notification check: Current time: ${currentMinutes} (${Math.floor(currentMinutes/60)}:${currentMinutes%60}), Target: ${targetMinutes} (${Math.floor(targetMinutes/60)}:${targetMinutes%60}), Diff: ${Math.abs(currentMinutes - targetMinutes)}`);
+    console.log(`Morning notification check: Current time: ${currentMinutes} (${Math.floor(currentMinutes/60)}:${currentMinutes%60}), Target: ${targetMinutes} (${Math.floor(targetMinutes/60)}:${targetMinutes%60}), Diff: ${Math.abs(currentMinutes - targetMinutes)}, Timezone: Asia/Macau`);
     
     if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 2) {
       console.log(`Not the right time. Current: ${currentMinutes}, Target: ${targetMinutes}`);
@@ -324,7 +324,7 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     }
     
     // Check if we already sent notification today
-    const today = hongKongTime.toDateString();
+    const today = macauTime.toDateString();
     const lastSentStr = await env.webbusdb.get('lastMorningNotification');
     if (!forceTest && lastSentStr === today) {
       console.log('Morning notification already sent today');
@@ -355,7 +355,8 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
       ['11', '39'].includes(bus.route_no)
     );
     
-    const timestamp = hongKongTime.toLocaleString('en-US', { 
+    const timestamp = macauTime.toLocaleString('en-US', { 
+      timeZone: 'Asia/Macau',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
