@@ -822,8 +822,15 @@
             }
 
             // 绑定事件监听器
-            document.getElementById('notifyTimeInput').addEventListener('change', updateTimeFromInput);
-            document.getElementById('notifySwitch').addEventListener('change', saveMorningSettings);
+            const notifyTimeInput = document.getElementById('notifyTimeInput');
+            const notifySwitch = document.getElementById('notifySwitch');
+            
+            if (notifyTimeInput) {
+                notifyTimeInput.addEventListener('change', updateTimeFromInput);
+            }
+            if (notifySwitch) {
+                notifySwitch.addEventListener('change', saveMorningSettings);
+            }
 
             // 初始化加载
             loadData();
