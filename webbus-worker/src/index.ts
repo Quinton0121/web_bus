@@ -368,9 +368,9 @@ export default {
           second: '2-digit'
         });
         
-        const header = `Bus Update - ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}\n\n`;
         const busInfo = formatBusData(filteredBusData);
-        const message = header + busInfo;
+        const footer = `\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
+        const message = busInfo + footer;
         
         // Send to Telegram
         console.log('Sending bus update to Telegram...');
@@ -520,9 +520,9 @@ export default {
               second: '2-digit'
             });
             
-            const header = `Bus Update ${cycleNum}/20 - ${monitoringData.stationName || monitoringData.stationId}\nTime: ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}\n\n`;
             const busInfo = formatBusData(filteredBusData);
-            const message = header + busInfo;
+            const footer = `\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
+            const message = busInfo + footer;
             
             // Send to Telegram
             const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN!, env.TELEGRAM_CHAT_ID!);
