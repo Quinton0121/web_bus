@@ -720,6 +720,22 @@ export default {
       }
     }
 
+    // Get cron debug info
+    if (request.method === 'GET' && url.pathname === '/api/cron-debug') {
+      try {
+        const debugInfo = await env.webbusdb.get('cronDebug');
+        return new Response(debugInfo || '{}', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to get cron debug info' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
 
@@ -736,7 +752,17 @@ export default {
     try {
       // Check for morning notifications first (every minute)
       console.log('Calling handleMorningNotifications...');
+      await env.webbusdb.put('cronDebug', JSON.stringify({
+        timestamp: cronTime,
+        step: 'ABOUT_TO_CALL_MORNING_NOTIFICATIONS'
+      }));
+      
       await handleMorningNotifications(env);
+      
+      await env.webbusdb.put('cronDebug', JSON.stringify({
+        timestamp: cronTime,
+        step: 'MORNING_NOTIFICATIONS_COMPLETED'
+      }));
       console.log('handleMorningNotifications completed');
       
       // Get all monitoring sessions
