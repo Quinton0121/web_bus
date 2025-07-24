@@ -664,6 +664,25 @@ export default {
       }
     }
 
+    // Check if cron is running
+    if (request.method === 'GET' && url.pathname === '/api/check-cron') {
+      try {
+        const lastExecution = await env.webbusdb.get('lastCronExecution');
+        return new Response(JSON.stringify({ 
+          lastCronExecution: lastExecution,
+          currentTime: new Date().toISOString()
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to check cron' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
 
@@ -673,6 +692,9 @@ export default {
     console.log('=== CRON TRIGGER EXECUTED ===');
     console.log('UTC Time:', cronTime);
     console.log('Event cron:', event.cron);
+    
+    // Store cron execution proof in KV
+    await env.webbusdb.put('lastCronExecution', cronTime);
     
     try {
       // Check for morning notifications first (every minute)
