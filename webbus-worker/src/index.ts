@@ -293,7 +293,7 @@ async function startBusMonitoring(
 }
 
 // Handle morning notifications (Monday to Friday)
-async function handleMorningNotifications(env: Env): Promise<void> {
+async function handleMorningNotifications(env: Env, forceTest: boolean = false): Promise<void> {
   try {
     // Get morning settings
     const settingsStr = await env.webbusdb.get('morningSettings');
@@ -307,7 +307,7 @@ async function handleMorningNotifications(env: Env): Promise<void> {
     const hongKongTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
     const dayOfWeek = hongKongTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
+    if (!forceTest && (dayOfWeek === 0 || dayOfWeek === 6)) {
       console.log('Weekend - skipping morning notification');
       return;
     }
@@ -316,14 +316,15 @@ async function handleMorningNotifications(env: Env): Promise<void> {
     const currentMinutes = hongKongTime.getHours() * 60 + hongKongTime.getMinutes();
     const targetMinutes = settings.morningNotification.time;
     
-    if (Math.abs(currentMinutes - targetMinutes) > 1) {
+    if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 1) {
+      console.log(`Not the right time. Current: ${currentMinutes}, Target: ${targetMinutes}`);
       return; // Not the right time
     }
     
     // Check if we already sent notification today
     const today = hongKongTime.toDateString();
     const lastSentStr = await env.webbusdb.get('lastMorningNotification');
-    if (lastSentStr === today) {
+    if (!forceTest && lastSentStr === today) {
       console.log('Morning notification already sent today');
       return;
     }
@@ -580,6 +581,26 @@ export default {
         });
       } catch (error) {
         return new Response(JSON.stringify({ error: 'Failed to load settings' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Test morning notification endpoint
+    if (request.method === 'POST' && url.pathname === '/api/test-morning-notification') {
+      try {
+        // Force trigger morning notification for testing
+        await handleMorningNotifications(env, true); // Pass true to bypass checks
+        return new Response(JSON.stringify({ success: true, message: 'Morning notification test triggered' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ 
+          error: 'Failed to test morning notification',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
