@@ -147,7 +147,7 @@ function formatBusData(busData: BusData[]): string {
   
   for (const [key, buses] of Object.entries(groupedBuses)) {
     const [routeNo, dirStr] = key.split('_');
-    const direction = dirStr === '0' ? 'Out' : 'In';
+    const direction = dirStr === '0' ? '' : ' (In)';
     
     // Sort buses by remaining stops (closest first)
     const sortedBuses = buses.sort((a, b) => {
@@ -167,11 +167,11 @@ function formatBusData(busData: BusData[]): string {
       if (bus.remaining !== undefined) {
         // Use stops format
         const stops = Math.round(bus.remaining * 10) / 10; // Round to 1 decimal
-        results.push(`Bus ${routeNo} (${direction}): ${stops} stops`);
+        results.push(`Bus ${routeNo}${direction}: ${stops} stops`);
       } else if (bus.lastbus === -1) {
-        results.push(`Bus ${routeNo} (${direction}): Running`);
+        results.push(`Bus ${routeNo}${direction}: Running`);
       } else {
-        results.push(`Bus ${routeNo} (${direction}): ${bus.lastbus}min`);
+        results.push(`Bus ${routeNo}${direction}: ${bus.lastbus}min`);
       }
     } else {
       // Multiple buses - show in "bus 11: 3 -> 7" format
@@ -187,9 +187,9 @@ function formatBusData(busData: BusData[]): string {
       });
       
       if (distances.length >= 2) {
-        results.push(`Bus ${routeNo} (${direction}): ${distances[0]} -> ${distances[1]}`);
+        results.push(`Bus ${routeNo}${direction}: ${distances[0]} -> ${distances[1]}`);
       } else {
-        results.push(`Bus ${routeNo} (${direction}): ${distances[0]}`);
+        results.push(`Bus ${routeNo}${direction}: ${distances[0]}`);
       }
     }
   }
@@ -369,7 +369,7 @@ export default {
         });
         
         const busInfo = formatBusData(filteredBusData);
-        const footer = `\n------------------------------\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
+        const footer = `\n---------------\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
         const message = busInfo + footer;
         
         // Send to Telegram
@@ -521,7 +521,7 @@ export default {
             });
             
             const busInfo = formatBusData(filteredBusData);
-            const footer = `\n------------------------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
+            const footer = `\n---------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
             const message = busInfo + footer;
             
             // Send to Telegram
