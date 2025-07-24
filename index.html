@@ -333,11 +333,10 @@
                 <div class="form-section">
                     <h2 class="form-title">通知设置</h2>
                     <div class="form-input">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">通知时间</label>
+                        <label for="notifyTimeInput" class="block text-sm font-medium text-gray-700 mb-2">通知时间</label>
                         <div class="flex items-center space-x-4">
-                            <input type="range" id="notifyTime" min="420" max="1380" value="540">
-                            <span id="timeValue" class="text-indigo-600 font-medium">09:00</span>
-                            <span id="timePeriod" class="text-gray-500">上午</span>
+                            <input type="time" id="notifyTimeInput" value="09:00" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <span class="text-gray-500">每个工作日自动发送</span>
                         </div>
                     </div>
                     <div class="form-input">
@@ -761,33 +760,25 @@
                 }, 2000);
             }
 
-            // 时间滑块更新函数
-            function updateTimeDisplay() {
-                const timeSlider = document.getElementById('notifyTime');
-                const timeValue = document.getElementById('timeValue');
-                const timePeriod = document.getElementById('timePeriod');
-                
-                const minutes = parseInt(timeSlider.value);
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-                
-                timeValue.textContent = timeString;
-                timePeriod.textContent = hours < 12 ? '上午' : '下午';
-                
+            // 时间输入更新函数
+            function updateTimeFromInput() {
                 // 保存设置
                 saveMorningSettings();
             }
 
             // 保存晨间通知设置
             async function saveMorningSettings() {
-                const notifyTime = document.getElementById('notifyTime').value;
+                const timeInput = document.getElementById('notifyTimeInput').value; // "HH:MM" format
                 const notifyEnabled = document.getElementById('notifySwitch').checked;
+                
+                // Convert "HH:MM" to minutes from midnight
+                const [hours, minutes] = timeInput.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes;
                 
                 const settings = {
                     morningNotification: {
                         enabled: notifyEnabled,
-                        time: parseInt(notifyTime), // 分钟数
+                        time: totalMinutes, // 分钟数
                         stationId: 'T408',
                         busNumbers: ['11', '39']
                     }
@@ -815,9 +806,14 @@
                     if (response.ok) {
                         const settings = await response.json();
                         if (settings.morningNotification) {
-                            document.getElementById('notifyTime').value = settings.morningNotification.time || 540;
+                            // Convert minutes back to "HH:MM" format
+                            const totalMinutes = settings.morningNotification.time || 540;
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                            
+                            document.getElementById('notifyTimeInput').value = timeString;
                             document.getElementById('notifySwitch').checked = settings.morningNotification.enabled || false;
-                            updateTimeDisplay();
                         }
                     }
                 } catch (error) {
@@ -826,13 +822,12 @@
             }
 
             // 绑定事件监听器
-            document.getElementById('notifyTime').addEventListener('input', updateTimeDisplay);
+            document.getElementById('notifyTimeInput').addEventListener('change', updateTimeFromInput);
             document.getElementById('notifySwitch').addEventListener('change', saveMorningSettings);
 
             // 初始化加载
             loadData();
             loadMorningSettings();
-            updateTimeDisplay();
         });
     </script>
 </body>
