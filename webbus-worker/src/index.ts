@@ -610,6 +610,44 @@ export default {
       }
     }
 
+    // Debug endpoint to check current time and settings
+    if (request.method === 'GET' && url.pathname === '/api/debug-morning') {
+      try {
+        const settingsStr = await env.webbusdb.get('morningSettings');
+        const settings = settingsStr ? JSON.parse(settingsStr) : null;
+        
+        const now = new Date();
+        const macauTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Macau"}));
+        const currentMinutes = macauTime.getHours() * 60 + macauTime.getMinutes();
+        
+        const debugInfo = {
+          currentTime: {
+            utc: now.toISOString(),
+            macau: macauTime.toString(),
+            minutes: currentMinutes,
+            formatted: `${Math.floor(currentMinutes/60)}:${(currentMinutes%60).toString().padStart(2, '0')}`
+          },
+          settings: settings,
+          dayOfWeek: macauTime.getDay(),
+          isWeekday: macauTime.getDay() >= 1 && macauTime.getDay() <= 5,
+          timeDiff: settings ? Math.abs(currentMinutes - settings.morningNotification.time) : 'N/A'
+        };
+        
+        return new Response(JSON.stringify(debugInfo, null, 2), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ 
+          error: 'Debug failed',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
 
