@@ -648,6 +648,22 @@ export default {
       }
     }
 
+    // Reset morning notification flag for testing
+    if (request.method === 'POST' && url.pathname === '/api/reset-morning-flag') {
+      try {
+        await env.webbusdb.delete('lastMorningNotification');
+        return new Response(JSON.stringify({ success: true, message: 'Morning notification flag reset' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to reset flag' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: corsHeaders });
   },
 
