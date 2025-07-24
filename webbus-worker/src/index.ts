@@ -669,11 +669,16 @@ export default {
 
   // Cron trigger for monitoring
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-    console.log('Cron trigger executed at:', new Date().toISOString());
+    const cronTime = new Date().toISOString();
+    console.log('=== CRON TRIGGER EXECUTED ===');
+    console.log('UTC Time:', cronTime);
+    console.log('Event cron:', event.cron);
     
     try {
       // Check for morning notifications first (every minute)
+      console.log('Calling handleMorningNotifications...');
       await handleMorningNotifications(env);
+      console.log('handleMorningNotifications completed');
       
       // Get all monitoring sessions
       const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
