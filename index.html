@@ -288,7 +288,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            checking api v1.2
+            checking api v1.3
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -312,8 +312,50 @@
                 <div class="form-section">
                     <h2 class="form-title">添加新公交站</h2>
                     <div class="form-input">
-                        <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称</label>
-                        <input type="text" id="busStop" placeholder="请输入公交站名称">
+                        <label for="busStop" class="block text-sm font-medium text-gray-700 mb-2">公交站名称 (站点ID)</label>
+                        <div class="relative">
+                            <input type="text" id="busStop" list="busStopList" placeholder="选择或输入站点ID (如: T408, M172)" class="w-full">
+                            <datalist id="busStopList">
+                                <!-- Popular Macau Bus Stops -->
+                                <option value="T408">T408 - 華寶花園</option>
+                                <option value="T325">T325 - 華寶花園</option>
+                                <option value="T326">T326 - 柯維立馬路</option>
+                                <option value="T560">T560 - 新濠天地</option>
+                                <option value="M172">M172 - 亞馬喇前地</option>
+                                <option value="M173">M173 - 約翰四世大馬路</option>
+                                <option value="M239">M239 - 外港碼頭</option>
+                                <option value="M254">M254 - 友誼馬路</option>
+                                <option value="M1">M1 - 關閘總站</option>
+                                <option value="M2">M2 - 三角花園</option>
+                                <option value="M5">M5 - 媽閣總站</option>
+                                <option value="M10">M10 - 水坑尾街</option>
+                                <option value="M50">M50 - 新馬路</option>
+                                <option value="M76">M76 - 盧廉若公園</option>
+                                <option value="M84">M84 - 高士德</option>
+                                <option value="M90">M90 - 司打口</option>
+                                <option value="M144">M144 - 水坑尾街</option>
+                                <option value="M163">M163 - 賈羅布/葡京</option>
+                                <option value="M168">M168 - 八角亭</option>
+                                <option value="M183">M183 - 金蓮花廣場</option>
+                                <option value="M201">M201 - 媽閣交通樞紐</option>
+                                <option value="M220">M220 - 祐漢第二街</option>
+                                <option value="M231">M231 - 白鴿巢總站</option>
+                                <option value="M240">M240 - 外港碼頭</option>
+                                <option value="M264">M264 - 青洲總站</option>
+                                <option value="T309">T309 - 氹仔中央公園</option>
+                                <option value="T330">T330 - 望德聖母灣馬路</option>
+                                <option value="T337">T337 - 氹仔客運碼頭</option>
+                                <option value="T339">T339 - 海洋花園</option>
+                                <option value="T343">T343 - 氹仔大中華廣場</option>
+                                <option value="T351">T351 - 氹仔中央公園/成都街</option>
+                                <option value="T376">T376 - 連貫公路/新濠天地</option>
+                                <option value="T413">T413 - 路氹邊檢大樓</option>
+                                <option value="T417">T417 - 路氹城生態保護區</option>
+                                <option value="C656">C656 - 路環市區</option>
+                                <option value="C662">C662 - 竹灣海灘</option>
+                            </datalist>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">可從下拉列表選擇常用站點，或直接輸入站點ID</div>
                     </div>
                     <div class="form-input">
                         <label for="busNumber" class="block text-sm font-medium text-gray-700 mb-2">目标公交编号</label>
