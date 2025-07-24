@@ -295,12 +295,22 @@ async function startBusMonitoring(
 // Handle morning notifications (Monday to Friday)
 async function handleMorningNotifications(env: Env, forceTest: boolean = false): Promise<void> {
   try {
+    console.log('=== handleMorningNotifications START ===');
+    
     // Get morning settings
     const settingsStr = await env.webbusdb.get('morningSettings');
-    if (!settingsStr) return;
+    console.log('Settings retrieved:', settingsStr);
+    if (!settingsStr) {
+      console.log('No morning settings found, returning');
+      return;
+    }
     
     const settings = JSON.parse(settingsStr);
-    if (!settings.morningNotification?.enabled) return;
+    console.log('Parsed settings:', JSON.stringify(settings));
+    if (!settings.morningNotification?.enabled) {
+      console.log('Morning notifications disabled, returning');
+      return;
+    }
     
     // Check if it's a weekday (Monday = 1, Friday = 5)
     const now = new Date();
