@@ -794,7 +794,7 @@
                 };
                 
                 try {
-                    const response = await fetch('/api/save-morning-settings', {
+                    const response = await fetch('https://webbus-worker.quinton0121.workers.dev/api/save-morning-settings', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(settings)
@@ -811,7 +811,7 @@
             // 加载晨间通知设置
             async function loadMorningSettings() {
                 try {
-                    const response = await fetch('/api/load-morning-settings');
+                    const response = await fetch('https://webbus-worker.quinton0121.workers.dev/api/load-morning-settings');
                     if (response.ok) {
                         const settings = await response.json();
                         if (settings.morningNotification) {
