@@ -312,11 +312,13 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
       return;
     }
     
-    // Check if it's the right time (within 1 minute of target time)
+    // Check if it's the right time (within 2 minutes of target time for better reliability)
     const currentMinutes = hongKongTime.getHours() * 60 + hongKongTime.getMinutes();
     const targetMinutes = settings.morningNotification.time;
     
-    if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 1) {
+    console.log(`Morning notification check: Current time: ${currentMinutes} (${Math.floor(currentMinutes/60)}:${currentMinutes%60}), Target: ${targetMinutes} (${Math.floor(targetMinutes/60)}:${targetMinutes%60}), Diff: ${Math.abs(currentMinutes - targetMinutes)}`);
+    
+    if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 2) {
       console.log(`Not the right time. Current: ${currentMinutes}, Target: ${targetMinutes}`);
       return; // Not the right time
     }
