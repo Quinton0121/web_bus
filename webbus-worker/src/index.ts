@@ -339,7 +339,7 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     
     console.log(`Morning notification check: Current time: ${currentMinutes} (${Math.floor(currentMinutes/60)}:${currentMinutes%60}), Target: ${targetMinutes} (${Math.floor(targetMinutes/60)}:${targetMinutes%60}), Diff: ${Math.abs(currentMinutes - targetMinutes)}, Timezone: Asia/Macau`);
     
-    if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 20) {
+    if (!forceTest && Math.abs(currentMinutes - targetMinutes) > 2) {
       console.log(`Not the right time. Current: ${currentMinutes}, Target: ${targetMinutes}`);
       return; // Not the right time
     }
