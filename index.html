@@ -693,9 +693,9 @@
             // 添加公交站
             addBusBtn.addEventListener('click', async function() {
                 if(busStopInput.value.trim() !== '' && busNumberInput.value.trim() !== '') {
-                    // Parse multiple bus numbers separated by commas
+                    // Parse multiple bus numbers separated by commas (handle both English and Chinese commas)
                     const busNumber = busNumberInput.value.trim();
-                    const busNumbers = busNumber.split(',').map(num => num.trim()).filter(num => num.length > 0);
+                    const busNumbers = busNumber.split(/[,，]/).map(num => num.trim()).filter(num => num.length > 0);
                     
                     const newStop = {
                         id: Date.now().toString(),
