@@ -288,7 +288,7 @@
 <body>
     <main class="content-card">
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
-            checking api v1.1
+            checking api v1.2
         </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
@@ -389,12 +389,6 @@
                 const displayHours = hours > 12 ? hours - 12 : hours;
                 return `${displayHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
             }
-            
-            notifyTime.addEventListener('input', function() {
-                const minutes = parseInt(this.value);
-                timeValue.textContent = formatTime(minutes);
-                timePeriod.textContent = minutes >= 720 ? '下午' : '上午';
-            });
             
             // 数据存储
             let bots = [];
