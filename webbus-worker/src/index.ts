@@ -328,15 +328,30 @@ async function handleMorningNotifications(env: Env): Promise<void> {
       return;
     }
     
-    console.log('Sending morning notification for T408, buses 11,39');
+    console.log('Starting morning monitoring session for T408, buses 11,39');
     
-    // Fetch bus data for T408
+    // Start a full monitoring session (20 cycles, 40s intervals)
+    const monitoringData = {
+      stationId: 'T408',
+      stationName: 'T408',
+      busNumbers: ['11', '39'],
+      startTime: Date.now(),
+      cycleCount: 0,
+      maxCycles: 20,
+      interval: 40000, // 40 seconds
+      active: true,
+      isMorningSession: true // Flag to identify morning sessions
+    };
+    
+    const monitoringKey = `monitoring_morning_${Date.now()}`;
+    await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+    
+    // Send first message immediately with morning greeting
     const busData = await fetchBusInfo('T408');
     const filteredBusData = busData.filter(bus => 
       ['11', '39'].includes(bus.route_no)
     );
     
-    // Format message
     const timestamp = hongKongTime.toLocaleString('en-US', { 
       year: 'numeric',
       month: '2-digit',
@@ -347,7 +362,7 @@ async function handleMorningNotifications(env: Env): Promise<void> {
     });
     
     const busInfo = formatBusData(filteredBusData);
-    const footer = `\n---------------\nStation: T408\nTime: ${timestamp}\nMorning Update: 11, 39`;
+    const footer = `\n---------------\nStation: T408\nUpdate: 1/20 at ${timestamp}\nMorning Session: 11, 39`;
     const message = `Good Morning Bus Update\n\n${busInfo}${footer}`;
     
     // Send to Telegram
@@ -355,11 +370,15 @@ async function handleMorningNotifications(env: Env): Promise<void> {
       const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
       
       if (success) {
-        // Mark as sent today
+        // Mark as sent today and update cycle count
         await env.webbusdb.put('lastMorningNotification', today);
-        console.log('Morning notification sent successfully');
+        monitoringData.cycleCount = 1;
+        await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+        console.log('Morning monitoring session started successfully');
       } else {
-        console.error('Failed to send morning notification');
+        console.error('Failed to start morning monitoring session');
+        // Clean up failed session
+        await env.webbusdb.delete(monitoringKey);
       }
     }
     
@@ -633,8 +652,16 @@ export default {
             });
             
             const busInfo = formatBusData(filteredBusData);
-            const footer = `\n---------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
-            const message = busInfo + footer;
+            
+            // Different message format for morning sessions
+            let footer, message;
+            if (monitoringData.isMorningSession) {
+              footer = `\n---------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nMorning Session: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
+              message = cycleNum === 1 ? `Good Morning Bus Update\n\n${busInfo}${footer}` : `${busInfo}${footer}`;
+            } else {
+              footer = `\n---------------\nStation: ${monitoringData.stationName || monitoringData.stationId}\nUpdate: ${cycleNum}/20 at ${timestamp}\nLooking for: ${monitoringData.busNumbers?.join(', ') || 'All buses'}`;
+              message = busInfo + footer;
+            }
             
             // Send to Telegram
             const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN!, env.TELEGRAM_CHAT_ID!);
