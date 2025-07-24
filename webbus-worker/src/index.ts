@@ -297,18 +297,29 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
   try {
     console.log('=== handleMorningNotifications START ===');
     
+    // Store debug info in KV
+    const debugInfo = { timestamp: new Date().toISOString(), step: 'START' };
+    
     // Get morning settings
     const settingsStr = await env.webbusdb.get('morningSettings');
     console.log('Settings retrieved:', settingsStr);
+    debugInfo.settingsStr = settingsStr;
+    
     if (!settingsStr) {
       console.log('No morning settings found, returning');
+      debugInfo.step = 'NO_SETTINGS';
+      await env.webbusdb.put('morningDebug', JSON.stringify(debugInfo));
       return;
     }
     
     const settings = JSON.parse(settingsStr);
     console.log('Parsed settings:', JSON.stringify(settings));
+    debugInfo.settings = settings;
+    
     if (!settings.morningNotification?.enabled) {
       console.log('Morning notifications disabled, returning');
+      debugInfo.step = 'DISABLED';
+      await env.webbusdb.put('morningDebug', JSON.stringify(debugInfo));
       return;
     }
     
@@ -687,6 +698,22 @@ export default {
         });
       } catch (error) {
         return new Response(JSON.stringify({ error: 'Failed to check cron' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Get morning notification debug info
+    if (request.method === 'GET' && url.pathname === '/api/morning-debug') {
+      try {
+        const debugInfo = await env.webbusdb.get('morningDebug');
+        return new Response(debugInfo || '{}', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Failed to get debug info' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
