@@ -582,6 +582,7 @@ export default {
     if (request.method === 'POST' && url.pathname === '/api/save-morning-settings') {
       try {
         const settings = await request.json();
+        console.log('Saving morning settings:', JSON.stringify(settings));
         await env.webbusdb.put('morningSettings', JSON.stringify(settings));
         return new Response(JSON.stringify({ success: true }), {
           status: 200,

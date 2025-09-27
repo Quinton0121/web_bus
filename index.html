@@ -1054,8 +1054,7 @@
                         time: totalMinutes, // 分钟数
                         stationId: 'T408',
                         busNumbers: ['11', '39']
-                    }
-                };
+                console.log('Saving morning settings:', settings);
                 
                 try {
                     const response = await fetch('https://webbus-worker.quinton0121.workers.dev/api/save-morning-settings', {
