@@ -428,6 +428,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
     if (request.method === 'POST' && url.pathname === '/api/save') {
+      console.log('/api/save endpoint reached');
       const data = await request.json();
       console.log('Saving data:', JSON.stringify(data));
       // Save bots and busStops as JSON strings

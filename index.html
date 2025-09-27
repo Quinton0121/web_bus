@@ -718,6 +718,7 @@
 
             // 保存数据
             async function saveData() {
+                console.log('saveData function called');
                 console.log('Saving data:', { bots, busStops });
                 try {
                     await fetch(`${API_BASE}/api/save`, {
