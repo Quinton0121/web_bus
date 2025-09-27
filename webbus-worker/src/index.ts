@@ -429,6 +429,7 @@ export default {
     }
     if (request.method === 'POST' && url.pathname === '/api/save') {
       const data = await request.json();
+      console.log('Saving data:', JSON.stringify(data));
       // Save bots and busStops as JSON strings
       await env.webbusdb.put('bots', JSON.stringify(data.bots || []));
       await env.webbusdb.put('busStops', JSON.stringify(data.busStops || []));
