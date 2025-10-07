@@ -626,6 +626,12 @@
                             <span class="slider"></span>
                         </label>
                     </div>
+                    <div class="form-input mt-4">
+                        <button id="resetNotificationBtn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Reset Daily Notification
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Bot配置区 -->
@@ -1099,6 +1105,28 @@
             
             if (saveSettingsBtn) {
                 saveSettingsBtn.addEventListener('click', saveMorningSettings);
+            }
+
+            const resetNotificationBtn = document.getElementById('resetNotificationBtn');
+            if (resetNotificationBtn) {
+                resetNotificationBtn.addEventListener('click', async function() {
+                    try {
+                        showToast('Resetting daily notification flag...');
+                        const response = await fetch(`${API_BASE}/api/reset-morning-flag`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            showToast('Daily notification flag has been reset.');
+                        } else {
+                            showToast('Failed to reset the flag.');
+                        }
+                    } catch (error) {
+                        console.error('Reset notification error:', error);
+                        showToast('Network error, please try again.');
+                    }
+                });
             }
 
             // 初始化加载

@@ -299,18 +299,16 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     
     // Get morning settings
     const settingsStr = await env.webbusdb.get('morningSettings');
-    console.log('Settings retrieved:', settingsStr);
-    
     if (!settingsStr) {
-      console.log('No morning settings found, returning');
+      console.log('[DEBUG] No morning settings found in KV. Exiting.');
       return;
     }
     
     const settings = JSON.parse(settingsStr);
-    console.log('Parsed settings:', JSON.stringify(settings));
+    console.log('[DEBUG] Loaded settings:', JSON.stringify(settings));
     
     if (!settings.morningNotification?.enabled) {
-      console.log('Morning notifications disabled, returning');
+      console.log('[DEBUG] Morning notifications are disabled in settings. Exiting.');
       return;
     }
     
@@ -320,7 +318,7 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     const dayOfWeek = macauTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
     if (!forceTest && (dayOfWeek === 0 || dayOfWeek === 6)) {
-      console.log('Weekend - skipping morning notification');
+      console.log(`[DEBUG] It's a weekend (day ${dayOfWeek}). Skipping notification.`);
       return;
     }
     
@@ -328,22 +326,23 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
     const currentMinutes = macauTime.getHours() * 60 + macauTime.getMinutes();
     const targetMinutes = settings.morningNotification.time;
     
-    console.log(`Morning notification check: Current time: ${currentMinutes} (${Math.floor(currentMinutes/60)}:${currentMinutes%60}), Target: ${targetMinutes} (${Math.floor(targetMinutes/60)}:${targetMinutes%60}), Diff: ${Math.abs(currentMinutes - targetMinutes)}, Timezone: Asia/Macau`);
+    console.log(`[DEBUG] Time check: Current minutes: ${currentMinutes}, Target minutes: ${targetMinutes}`);
     
     if (!forceTest && currentMinutes < targetMinutes) {
-      console.log(`Not the right time yet. Current: ${currentMinutes}, Target: ${targetMinutes}`);
+      console.log(`[DEBUG] Not time yet. Exiting.`);
       return; // Not the right time yet
     }
     
     // Check if we already sent notification today
     const today = macauTime.toDateString();
     const lastSentStr = await env.webbusdb.get('lastMorningNotification');
+    console.log(`[DEBUG] 'lastMorningNotification' check: Found value: '${lastSentStr}', Today's date string: '${today}'`);
     if (!forceTest && lastSentStr === today) {
-      console.log('Morning notification already sent today');
+      console.log('[DEBUG] Notification already sent today. Exiting.');
       return;
     }
     
-    console.log('Starting morning monitoring session for T408, buses 11,39');
+    console.log('[SUCCESS] All checks passed. Starting morning monitoring session for T408, buses 11,39');
     
     // Start a full monitoring session (20 cycles, 40s intervals)
     const monitoringData = {
