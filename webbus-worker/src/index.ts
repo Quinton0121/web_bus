@@ -297,29 +297,20 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
   try {
     console.log('=== handleMorningNotifications START ===');
     
-    // Store debug info in KV
-    const debugInfo = { timestamp: new Date().toISOString(), step: 'START' };
-    
     // Get morning settings
     const settingsStr = await env.webbusdb.get('morningSettings');
     console.log('Settings retrieved:', settingsStr);
-    debugInfo.settingsStr = settingsStr;
     
     if (!settingsStr) {
       console.log('No morning settings found, returning');
-      debugInfo.step = 'NO_SETTINGS';
-      await env.webbusdb.put('morningDebug', JSON.stringify(debugInfo));
       return;
     }
     
     const settings = JSON.parse(settingsStr);
     console.log('Parsed settings:', JSON.stringify(settings));
-    debugInfo.settings = settings;
     
     if (!settings.morningNotification?.enabled) {
       console.log('Morning notifications disabled, returning');
-      debugInfo.step = 'DISABLED';
-      await env.webbusdb.put('morningDebug', JSON.stringify(debugInfo));
       return;
     }
     
@@ -749,23 +740,12 @@ export default {
     console.log('UTC Time:', cronTime);
     console.log('Event cron:', event.cron);
     
-    // Store cron execution proof in KV
-    await env.webbusdb.put('lastCronExecution', cronTime);
-    
     try {
       // Check for morning notifications first (every minute)
       console.log('Calling handleMorningNotifications...');
-      await env.webbusdb.put('cronDebug', JSON.stringify({
-        timestamp: cronTime,
-        step: 'ABOUT_TO_CALL_MORNING_NOTIFICATIONS'
-      }));
       
       await handleMorningNotifications(env);
       
-      await env.webbusdb.put('cronDebug', JSON.stringify({
-        timestamp: cronTime,
-        step: 'MORNING_NOTIFICATIONS_COMPLETED'
-      }));
       console.log('handleMorningNotifications completed');
       
       // Get all monitoring sessions
