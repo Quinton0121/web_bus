@@ -29,6 +29,13 @@ A Cloudflare Worker application for managing bus data and Telegram bot integrati
    npm run deploy
    ```
 
+## 🌐 Deployment
+
+This project is deployed with a separate frontend and backend.
+
+- **Frontend URL:** [https://web-bus.pages.dev](https://web-bus.pages.dev)
+- **Backend URL:** [https://webbus-worker.quinton0121.workers.dev](https://webbus-worker.quinton0121.workers.dev)
+
 ## 🔧 Development
 
 ```bash
