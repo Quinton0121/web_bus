@@ -534,26 +534,30 @@ export default {
     // Stop monitoring endpoint
     if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
       try {
-        // Stop all active monitoring sessions in KV
+        // 1. Delete all active monitoring sessions in KV
         const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
         let stoppedCount = 0;
         
         for (const key of keys) {
-          const monitoringDataStr = await env.webbusdb.get(key.name);
-          if (monitoringDataStr) {
-            const monitoringData = JSON.parse(monitoringDataStr);
-            if (monitoringData.active) {
-              // Delete the monitoring session completely
-              await env.webbusdb.delete(key.name);
-              console.log(`Deleted monitoring session: ${key.name}`);
-              stoppedCount++;
-            }
+          await env.webbusdb.delete(key.name);
+          console.log(`Deleted monitoring session: ${key.name}`);
+          stoppedCount++;
+        }
+
+        // 2. Disable morning notifications
+        const settingsStr = await env.webbusdb.get('morningSettings');
+        if (settingsStr) {
+          const settings = JSON.parse(settingsStr);
+          if (settings.morningNotification) {
+            settings.morningNotification.enabled = false;
+            await env.webbusdb.put('morningSettings', JSON.stringify(settings));
+            console.log('Morning notifications disabled.');
           }
         }
         
         return new Response(JSON.stringify({ 
           success: true, 
-          message: `Stopped ${stoppedCount} active monitoring session(s)`,
+          message: `Stopped ${stoppedCount} active monitoring session(s) and disabled morning notifications.`,
           stoppedCount: stoppedCount
         }), {
           status: 200,
