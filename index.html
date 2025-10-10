@@ -215,7 +215,6 @@
             bottom: 2rem;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #165DFF;
             color: white;
             padding: 12px 24px;
             border-radius: 8px;
@@ -1032,21 +1031,35 @@
             });
 
             // Toast提示函数
-            function showToast(message) {
+            function showToast(message, type = 'info') {
                 const toast = document.getElementById('toast');
                 toast.textContent = message;
+                
+                // Remove existing color classes
+                toast.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600');
+
+                // Add color class based on type
+                if (type === 'success') {
+                    toast.classList.add('bg-green-600');
+                } else if (type === 'error') {
+                    toast.classList.add('bg-red-600');
+                } else {
+                    toast.classList.add('bg-blue-600');
+                }
+
                 toast.classList.add('show');
 
                 setTimeout(() => {
                     toast.classList.remove('show');
-                }, 2000);
+                }, 3000);
             }
 
 
             // 保存晨间通知设置
             async function saveMorningSettings() {
+                const notifySwitch = document.getElementById('notifySwitch');
                 const timeInput = document.getElementById('notifyTimeInput').value; // "HH:MM" format
-                const notifyEnabled = document.getElementById('notifySwitch').checked;
+                const notifyEnabled = notifySwitch.checked;
                 
                 // Convert "HH:MM" to minutes from midnight
                 const [hours, minutes] = timeInput.split(':').map(Number);
@@ -1070,11 +1083,17 @@
                     });
                     
                     if (response.ok) {
-                        showToast('Settings saved');
+                        showToast('Settings saved successfully', 'success');
                         console.log('Morning settings saved');
+                    } else {
+                        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                        throw new Error(errorData.message || 'Failed to save settings');
                     }
                 } catch (error) {
+                    showToast(`Error: ${error.message}`, 'error');
                     console.error('Failed to save morning settings:', error);
+                    // Revert the switch state if the save fails
+                    notifySwitch.checked = !notifyEnabled;
                 }
             }
 
@@ -1100,11 +1119,15 @@
                 }
             }
 
-            // 绑定事件监听器
             const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+            const notifySwitch = document.getElementById('notifySwitch');
             
             if (saveSettingsBtn) {
                 saveSettingsBtn.addEventListener('click', saveMorningSettings);
+            }
+
+            if (notifySwitch) {
+                notifySwitch.addEventListener('change', saveMorningSettings);
             }
 
             const resetNotificationBtn = document.getElementById('resetNotificationBtn');
