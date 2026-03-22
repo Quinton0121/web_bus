@@ -1,0 +1,17 @@
+{
+	"name": "web-bus",
+	"private": true,
+	"scripts": {
+		"install:all": "npm install && npm install --prefix webbus-worker",
+		"dev": "concurrently -k -n worker,web -c blue,green \"npm run dev:worker\" \"npm run dev:web\"",
+		"dev:remote": "concurrently -k -n worker,web -c blue,green \"npm run dev:remote --prefix webbus-worker\" \"npm run dev:web\"",
+		"dev:worker": "npm run dev --prefix webbus-worker",
+		"dev:web": "serve -l 5173 .",
+		"deploy": "npm run deploy --prefix webbus-worker",
+		"test": "npm run test --prefix webbus-worker"
+	},
+	"devDependencies": {
+		"concurrently": "^9.1.2",
+		"serve": "^14.2.4"
+	}
+}

@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `wrangler dev` (local secrets; never commit .dev.vars)
+# https://developers.cloudflare.com/workers/configuration/secrets/
+
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+WEBHOOK_ID_TRIGGER=
+WEBHOOK_ID_TELEGRAM=

@@ -197,6 +197,40 @@ function formatBusData(busData: BusData[]): string {
   return results.join('\n');
 }
 
+/** KV keys: `busSnapshot:${encodeURIComponent(stationId)}` — latest buses for website + Cron history */
+const SNAPSHOT_PREFIX = 'busSnapshot:';
+
+function snapshotKeyForStation(stationId: string): string {
+  return SNAPSHOT_PREFIX + encodeURIComponent(String(stationId).trim());
+}
+
+async function saveBusSnapshot(env: Env, stationId: string, buses: BusData[]): Promise<void> {
+  const key = snapshotKeyForStation(stationId);
+  await env.webbusdb.put(
+    key,
+    JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      buses,
+    })
+  );
+}
+
+async function loadAllSnapshots(env: Env): Promise<Record<string, { updatedAt: string; buses: BusData[] }>> {
+  const { keys } = await env.webbusdb.list({ prefix: SNAPSHOT_PREFIX });
+  const snapshots: Record<string, { updatedAt: string; buses: BusData[] }> = {};
+  for (const k of keys) {
+    const raw = await env.webbusdb.get(k.name);
+    if (!raw) continue;
+    const stationId = decodeURIComponent(k.name.slice(SNAPSHOT_PREFIX.length));
+    try {
+      snapshots[stationId] = JSON.parse(raw);
+    } catch {
+      /* skip */
+    }
+  }
+  return snapshots;
+}
+
 // Send message to Telegram
 async function sendTelegramMessage(message: string, botToken: string, chatId: string): Promise<boolean> {
   try {
@@ -292,111 +326,159 @@ async function startBusMonitoring(
   console.log('Bus monitoring completed or stopped');
 }
 
+/** Reliable Asia/Macau clock (avoid `new Date(localeString)` which is engine-dependent). */
+function getMacauCalendar(d: Date): {
+  dayOfWeek: number;
+  minutesFromMidnight: number;
+  dateKey: string;
+} {
+  const dateKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Macau',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Macau',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const wd = get('weekday');
+  const dayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  const dayOfWeek = dayMap[wd.slice(0, 3)] ?? 0;
+
+  const hour = parseInt(get('hour'), 10);
+  const minute = parseInt(get('minute'), 10);
+  const minutesFromMidnight = hour * 60 + minute;
+
+  return { dayOfWeek, minutesFromMidnight, dateKey };
+}
+
 // Handle morning notifications (Monday to Friday)
 async function handleMorningNotifications(env: Env, forceTest: boolean = false): Promise<void> {
   try {
     console.log('=== handleMorningNotifications START ===');
-    
-    // Get morning settings
+
     const settingsStr = await env.webbusdb.get('morningSettings');
     if (!settingsStr) {
       console.log('[DEBUG] No morning settings found in KV. Exiting.');
       return;
     }
-    
+
     const settings = JSON.parse(settingsStr);
     console.log('[DEBUG] Loaded settings:', JSON.stringify(settings));
-    
+
     if (!settings.morningNotification?.enabled) {
       console.log('[DEBUG] Morning notifications are disabled in settings. Exiting.');
       return;
     }
-    
-    // Check if it's a weekday (Monday = 1, Friday = 5)
+
+    const stationId = String(settings.morningNotification.stationId || 'T408').trim();
+    const busNumbers: string[] = Array.isArray(settings.morningNotification.busNumbers)
+      ? settings.morningNotification.busNumbers.map((x: string) => String(x).trim())
+      : ['11', '39'];
+
     const now = new Date();
-    const macauTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Macau"}));
-    const dayOfWeek = macauTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    
+    const { dayOfWeek, minutesFromMidnight: currentMinutes, dateKey: today } = getMacauCalendar(now);
+
     if (!forceTest && (dayOfWeek === 0 || dayOfWeek === 6)) {
       console.log(`[DEBUG] It's a weekend (day ${dayOfWeek}). Skipping notification.`);
       return;
     }
-    
-    // Check if it's the right time (within 2 minutes of target time for better reliability)
-    const currentMinutes = macauTime.getHours() * 60 + macauTime.getMinutes();
+
     const targetMinutes = settings.morningNotification.time;
-    
-    console.log(`[DEBUG] Time check: Current minutes: ${currentMinutes}, Target minutes: ${targetMinutes}`);
-    
+    /** Only fire between target time and target+15min (cron is every minute). */
+    const WINDOW_AFTER_TARGET = 15;
+
+    console.log(
+      `[DEBUG] Time check: Macau date ${today}, current minutes: ${currentMinutes}, target: ${targetMinutes}, window: +${WINDOW_AFTER_TARGET}m`
+    );
+
     if (!forceTest && currentMinutes < targetMinutes) {
       console.log(`[DEBUG] Not time yet. Exiting.`);
-      return; // Not the right time yet
+      return;
     }
-    
-    // Check if we already sent notification today
-    const today = macauTime.toDateString();
+
+    if (!forceTest && currentMinutes > targetMinutes + WINDOW_AFTER_TARGET) {
+      console.log(`[DEBUG] Past morning window (${WINDOW_AFTER_TARGET} min after target). Exiting.`);
+      return;
+    }
+
     const lastSentStr = await env.webbusdb.get('lastMorningNotification');
-    console.log(`[DEBUG] 'lastMorningNotification' check: Found value: '${lastSentStr}', Today's date string: '${today}'`);
+    console.log(`[DEBUG] 'lastMorningNotification' check: '${lastSentStr}' vs today '${today}'`);
     if (!forceTest && lastSentStr === today) {
       console.log('[DEBUG] Notification already sent today. Exiting.');
       return;
     }
-    
-    console.log('[SUCCESS] All checks passed. Starting morning monitoring session for T408, buses 11,39');
-    
-    // Start a full monitoring session (20 cycles, 40s intervals)
+
+    console.log(
+      `[SUCCESS] All checks passed. Morning session for station ${stationId}, buses ${busNumbers.join(',')}`
+    );
+
     const monitoringData = {
-      stationId: 'T408',
-      stationName: 'T408',
-      busNumbers: ['11', '39'],
+      stationId,
+      stationName: stationId,
+      busNumbers,
       startTime: Date.now(),
       cycleCount: 0,
       maxCycles: 20,
-      interval: 40000, // 40 seconds
+      interval: 40000,
       active: true,
-      isMorningSession: true // Flag to identify morning sessions
+      isMorningSession: true,
     };
-    
+
     const monitoringKey = `monitoring_morning_${Date.now()}`;
     await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
-    
-    // Send first message immediately with morning greeting
-    const busData = await fetchBusInfo('T408');
-    const filteredBusData = busData.filter(bus => 
-      ['11', '39'].includes(bus.route_no)
+
+    const busData = await fetchBusInfo(stationId);
+    const filteredBusData = busData.filter((bus) =>
+      busNumbers.some((num) => String(bus.route_no) === String(num))
     );
-    
-    const timestamp = macauTime.toLocaleString('en-US', { 
+
+    const timestamp = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Macau',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
-    });
-    
+      second: '2-digit',
+    }).format(now);
+
     const busInfo = formatBusData(filteredBusData);
-    const footer = `\n---------------\nStation: T408\nUpdate: 1/20 at ${timestamp}\nMorning Session: 11, 39`;
+    const footer = `\n---------------\nStation: ${stationId}\nUpdate: 1/20 at ${timestamp}\nMorning Session: ${busNumbers.join(', ')}`;
     const message = `Good Morning Bus Update\n\n${busInfo}${footer}`;
-    
-    // Send to Telegram
-    if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
-      const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
-      
-      if (success) {
-        // Mark as sent today and update cycle count
-        await env.webbusdb.put('lastMorningNotification', today);
-        monitoringData.cycleCount = 1;
-        await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
-        console.log('Morning monitoring session started successfully');
-      } else {
-        console.error('Failed to start morning monitoring session');
-        // Clean up failed session
-        await env.webbusdb.delete(monitoringKey);
-      }
+
+    if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+      console.error('[DEBUG] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing — cannot send morning notification.');
+      await env.webbusdb.delete(monitoringKey);
+      return;
     }
-    
+
+    const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
+
+    if (success) {
+      await env.webbusdb.put('lastMorningNotification', today);
+      monitoringData.cycleCount = 1;
+      await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+      console.log('Morning monitoring session started successfully');
+    } else {
+      console.error('Failed to start morning monitoring session (Telegram send failed)');
+      await env.webbusdb.delete(monitoringKey);
+    }
   } catch (error) {
     console.error('Error in morning notification:', error);
   }
@@ -432,45 +514,52 @@ export default {
     if (request.method === 'GET' && url.pathname === '/api/load') {
       const bots = await env.webbusdb.get('bots');
       const busStops = await env.webbusdb.get('busStops');
+      const snapshots = await loadAllSnapshots(env);
       return new Response(
         JSON.stringify({
           bots: bots ? JSON.parse(bots) : [],
           busStops: busStops ? JSON.parse(busStops) : [],
+          snapshots,
         }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
-    // Continuous bus monitoring endpoint
+
+    if (request.method === 'GET' && url.pathname === '/api/snapshots') {
+      const snapshots = await loadAllSnapshots(env);
+      return new Response(JSON.stringify({ snapshots }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // Continuous bus monitoring endpoint (always returns busData when upstream API succeeds)
     if (request.method === 'POST' && url.pathname === '/api/fetch-bus') {
       try {
         const { stationId, stationName, busNumbers } = await request.json();
-        
-        if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
-          return new Response(JSON.stringify({ error: 'Telegram not configured' }), {
-            status: 500,
+
+        if (!stationId || String(stationId).trim() === '') {
+          return new Response(JSON.stringify({ error: 'stationId is required' }), {
+            status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
 
-        // Fetch real bus information (single call)
         console.log('Making single bus API call...');
         const busData = await fetchBusInfo(stationId);
-        
-        // Filter by specific bus numbers if provided
+
         let filteredBusData = busData;
         if (busNumbers && busNumbers.length > 0 && busData.length > 0) {
-          filteredBusData = busData.filter(bus => 
+          filteredBusData = busData.filter((bus) =>
             busNumbers.some((num: string) => bus.route_no === num.trim())
           );
           console.log(`Filtering for buses: ${busNumbers.join(', ')}`);
           console.log(`Found ${filteredBusData.length} matching buses out of ${busData.length} total`);
         }
 
-        // Format the message
-        const timestamp = new Date().toLocaleString('en-US', { 
+        const timestamp = new Date().toLocaleString('en-US', {
           timeZone: 'Asia/Shanghai',
           year: 'numeric',
           month: '2-digit',
@@ -479,54 +568,74 @@ export default {
           minute: '2-digit',
           second: '2-digit'
         });
-        
+
         const busInfo = formatBusData(filteredBusData);
         const footer = `\n---------------\nStation: ${stationName || stationId}\nTime: ${timestamp}\nLooking for: ${busNumbers?.join(', ') || 'All buses'}`;
         const message = busInfo + footer;
-        
-        // Send to Telegram
-        console.log('Sending bus update to Telegram...');
-        const success = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
 
-        // Store monitoring request in KV for cron processing
-        const monitoringData = {
-          stationId,
-          stationName,
-          busNumbers,
-          startTime: Date.now(),
-          cycleCount: 0,
-          maxCycles: 20,
-          interval: 10000, // 10 seconds - FOR TESTING
-          active: true
-        };
-        
-        const monitoringKey = `monitoring_${stationId}_${Date.now()}`;
-        await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
-        
-        // Send first message immediately
-        if (success) {
-          console.log('First message sent, cron will handle remaining cycles');
+        await saveBusSnapshot(env, stationId, filteredBusData);
+
+        const telegramConfigured = !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID);
+        let telegramSent = false;
+        let monitoringKey: string | null = null;
+
+        if (telegramConfigured) {
+          console.log('Sending bus update to Telegram...');
+          telegramSent = await sendTelegramMessage(message, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
+          if (telegramSent) {
+            const monitoringData = {
+              stationId,
+              stationName,
+              busNumbers,
+              startTime: Date.now(),
+              cycleCount: 0,
+              maxCycles: 20,
+              interval: 10000,
+              active: true
+            };
+            monitoringKey = `monitoring_${stationId}_${Date.now()}`;
+            await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+            console.log('First message sent, cron will handle remaining cycles');
+          }
+        } else {
+          console.log('Telegram not configured — returning bus data for web preview only');
         }
-        
-        return new Response(JSON.stringify({ 
-          success: success, 
-          message: success ? 'Started server-side monitoring - 20 cycles every 40 seconds' : 'Failed to start monitoring',
-          monitoringKey: monitoringKey,
-          busData: filteredBusData,
-          timestamp: timestamp
-        }), {
-          status: success ? 200 : 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
 
+        let clientMessage: string;
+        if (!telegramConfigured) {
+          clientMessage = '已取得到站数据（本机未配置 Telegram，仅页面预览；后续轮询请用 Telegram 或部署后 Cron）';
+        } else if (telegramSent) {
+          clientMessage = '已发送到 Telegram，并已启动服务器端监控（Cron 续跑）';
+        } else {
+          clientMessage = '到站数据已显示在页面；Telegram 发送失败，未启动 Cron 监控';
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            busData: filteredBusData,
+            timestamp,
+            telegramConfigured,
+            telegramSent,
+            monitoringKey,
+            message: clientMessage
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       } catch (error) {
-        return new Response(JSON.stringify({ 
-          error: 'Failed to process request',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to process request',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
     }
 
@@ -633,22 +742,23 @@ export default {
       try {
         const settingsStr = await env.webbusdb.get('morningSettings');
         const settings = settingsStr ? JSON.parse(settingsStr) : null;
-        
+
         const now = new Date();
-        const macauTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Macau"}));
-        const currentMinutes = macauTime.getHours() * 60 + macauTime.getMinutes();
-        
+        const macau = getMacauCalendar(now);
+        const currentMinutes = macau.minutesFromMidnight;
+
         const debugInfo = {
           currentTime: {
             utc: now.toISOString(),
-            macau: macauTime.toString(),
+            macauDateKey: macau.dateKey,
             minutes: currentMinutes,
-            formatted: `${Math.floor(currentMinutes/60)}:${(currentMinutes%60).toString().padStart(2, '0')}`
+            formatted: `${Math.floor(currentMinutes / 60)}:${(currentMinutes % 60).toString().padStart(2, '0')}`,
           },
           settings: settings,
-          dayOfWeek: macauTime.getDay(),
-          isWeekday: macauTime.getDay() >= 1 && macauTime.getDay() <= 5,
-          timeDiff: settings ? Math.abs(currentMinutes - settings.morningNotification.time) : 'N/A'
+          dayOfWeek: macau.dayOfWeek,
+          isWeekday: macau.dayOfWeek >= 1 && macau.dayOfWeek <= 5,
+          timeDiff: settings ? Math.abs(currentMinutes - settings.morningNotification.time) : 'N/A',
+          lastMorningNotification: await env.webbusdb.get('lastMorningNotification'),
         };
         
         return new Response(JSON.stringify(debugInfo, null, 2), {
@@ -806,7 +916,9 @@ export default {
             });
             
             const busInfo = formatBusData(filteredBusData);
-            
+
+            await saveBusSnapshot(env, monitoringData.stationId, filteredBusData);
+
             // Different message format for morning sessions
             let footer, message;
             if (monitoringData.isMorningSession) {
