@@ -892,6 +892,43 @@
                 return lines + time;
             }
 
+            function updateLivePanels() {
+                const cards = document.querySelectorAll('.bus-card');
+                cards.forEach(card => {
+                    const stopId = card.dataset.id;
+                    const stop = busStops.find(s => s.id === stopId);
+                    if (!stop) return;
+
+                    const snap = lastSnapshots[stop.name];
+                    const mon = activeMonitorings[stop.name];
+
+                    let sourceHtml = '';
+                    if (snap && snap.source) {
+                        const color = snap.source.includes('Proxy') ? '#ef4444' : '#10b981';
+                        const displayTxt = snap.source.includes('Proxy') ? 'Old API' : 'dsat.gov.mo';
+                        sourceHtml = `<div style="font-size: 10px; color: ${color}; text-align: right; margin-top: -8px; margin-bottom: 4px; font-weight: 500;">API: ${displayTxt}</div>`;
+                    }
+
+                    let monHtml = '';
+                    if (mon) {
+                        const secondsLeft = 60 - new Date().getSeconds();
+                        monHtml = `<div style="font-size: 11px; color: #3b82f6; text-align: center; margin-top: 6px; padding: 4px; background: #eff6ff; border-radius: 4px; border: 1px solid #bfdbfe;">
+                            <i class="fas fa-satellite-dish" style="animation: blink 1.5s infinite;"></i> 监控发送中 (循环 ${mon.cycleCount}/${mon.maxCycles})<br>
+                            等待下次发送: <span class="server-timer" style="font-weight: 700;">${secondsLeft}</span> 秒
+                        </div>`;
+                    }
+
+                    const liveHtml = snap && snap.updatedAt != null
+                        ? sourceHtml + formatBusPreviewHtml(snap.buses || [], formatSnapshotTime(snap.updatedAt)) + monHtml
+                        : '<span style="color:#94a3b8;">点击 🔍 获取实时到站（Cron 同步后会自动显示）</span>';
+
+                    const panel = card.querySelector('.bus-live-panel');
+                    if (panel) {
+                        panel.innerHTML = liveHtml;
+                    }
+                });
+            }
+
             // 创建公交站卡片
             function createBusStopCard(stop, isDefault = false) {
                 // Ensure the stop has an ID before creating the card
@@ -1288,7 +1325,7 @@
                 });
             }
 
-            let refreshInterval = 20;
+            let refreshInterval = 30; // Check every 30s silently
             let timeUntilNext = refreshInterval;
 
             async function refreshSnapshotsOnly() {
@@ -1298,7 +1335,7 @@
                     const data = await r.json();
                     lastSnapshots = data.snapshots || {};
                     activeMonitorings = data.monitorings || {};
-                    renderBusStopCards();
+                    updateLivePanels();
                 } catch (_) { 
                     /* ignore */ 
                 } finally {
