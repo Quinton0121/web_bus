@@ -237,6 +237,11 @@
                 opacity: 0;
             }
         }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -720,8 +725,9 @@
             // 数据存储
             let bots = [];
             let busStops = [];
-            /** @type {Record<string, { updatedAt: string, buses: Array<Record<string, unknown>> }>} */
+            /** @type {Record<string, { updatedAt: string, buses: Array<Record<string, unknown>>, source: string }>} */
             let lastSnapshots = {};
+            let activeMonitorings = {};
             let isMonitoring = false;
             let currentMonitoringStop = null;
             let wakeLock = null;
@@ -913,8 +919,25 @@
                 card.dataset.id = stop.id;
 
                 const snap = lastSnapshots[stop.name];
+                const mon = activeMonitorings[stop.name];
+
+                let sourceHtml = '';
+                if (snap && snap.source) {
+                    const color = snap.source.includes('Proxy') ? '#ef4444' : '#10b981';
+                    sourceHtml = `<div style="font-size: 10px; color: ${color}; text-align: right; margin-top: -8px; margin-bottom: 4px; font-weight: 500;">API: ${snap.source}</div>`;
+                }
+
+                let monHtml = '';
+                if (mon) {
+                    const secondsLeft = 60 - new Date().getSeconds();
+                    monHtml = `<div style="font-size: 11px; color: #3b82f6; text-align: center; margin-top: 6px; padding: 4px; background: #eff6ff; border-radius: 4px; border: 1px solid #bfdbfe;">
+                        <i class="fas fa-satellite-dish" style="animation: blink 1.5s infinite;"></i> 监控发送中 (循环 ${mon.cycleCount}/${mon.maxCycles})<br>
+                        等待下次发送: <span class="server-timer" style="font-weight: 700;">${secondsLeft}</span> 秒
+                    </div>`;
+                }
+
                 const liveHtml = snap && snap.updatedAt != null
-                    ? formatBusPreviewHtml(snap.buses || [], formatSnapshotTime(snap.updatedAt))
+                    ? sourceHtml + formatBusPreviewHtml(snap.buses || [], formatSnapshotTime(snap.updatedAt)) + monHtml
                     : '<span style="color:#94a3b8;">点击 🔍 获取实时到站（Cron 同步后会自动显示）</span>';
 
                 card.innerHTML = `
@@ -1295,6 +1318,7 @@
                     if (!r.ok) return;
                     const data = await r.json();
                     lastSnapshots = data.snapshots || {};
+                    activeMonitorings = data.monitorings || {};
                     renderBusStopCards();
                 } catch (_) { 
                     /* ignore */ 
@@ -1315,6 +1339,12 @@
                         countdownDisplay.textContent = `Next sync: ${timeUntilNext}s`;
                     }
                 }
+                
+                const nowSecs = new Date().getSeconds();
+                const serverWait = 60 - nowSecs;
+                document.querySelectorAll('.server-timer').forEach(el => {
+                    el.textContent = serverWait;
+                });
             }, 1000);
 
             // 初始化加载

@@ -91,6 +91,7 @@ async function fetchBusInfo(env: Env, stationId: string, busNumbers?: string[]):
         // Only return if we actually successfully queried the DSAT API for at least one route
         if (successCount > 0) {
           console.log(`[bus dsat] ${stationId} → ${processedData.length} row(s)`);
+          (processedData as any)._source = 'DSAT Official API';
           return processedData;
         }
       }
@@ -168,6 +169,7 @@ async function fetchBusInfo(env: Env, stationId: string, busNumbers?: string[]):
     }
 
     console.log(`[bus proxy] ${stationId} → ${processedData.length} row(s)`);
+    (processedData as any)._source = 'Old Proxy API';
     return processedData;
   } catch (error) {
     console.error('Error fetching bus info:', error);
@@ -254,13 +256,12 @@ function snapshotKeyForStation(stationId: string): string {
 
 async function saveBusSnapshot(env: Env, stationId: string, buses: BusData[]): Promise<void> {
   const key = snapshotKeyForStation(stationId);
-  await env.webbusdb.put(
-    key,
-    JSON.stringify({
-      updatedAt: new Date().toISOString(),
-      buses,
-    })
-  );
+  const snapshot = {
+    updatedAt: new Date().toISOString(),
+    buses,
+    source: (buses as any)._source || 'Unknown'
+  };
+  await env.webbusdb.put(key, JSON.stringify(snapshot));
 }
 
 async function loadAllSnapshots(env: Env): Promise<Record<string, { updatedAt: string; buses: BusData[] }>> {
@@ -527,12 +528,47 @@ export default {
       );
     }
 
+    // Snapshot endpoint
     if (request.method === 'GET' && url.pathname === '/api/snapshots') {
-      const snapshots = await loadAllSnapshots(env);
-      return new Response(JSON.stringify({ snapshots }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      try {
+        const { keys: snapshotKeys } = await env.webbusdb.list({ prefix: 'snapshot_' });
+        const snapshots: Record<string, any> = {};
+        for (const key of snapshotKeys) {
+          const stationId = decodeURIComponent(key.name.slice(9)); // length of 'snapshot_'
+          const val = await env.webbusdb.get(key.name);
+          if (val) snapshots[stationId] = JSON.parse(val);
+        }
+
+        const { keys: monitoringKeys } = await env.webbusdb.list({ prefix: 'monitoring_' });
+        const monitorings: Record<string, any> = {};
+        
+        // Use the same global stop logic as the cron to filter out dead sessions
+        const globalStopStr = await env.webbusdb.get('global_stop_timestamp');
+        const globalStop = globalStopStr ? parseInt(globalStopStr, 10) : 0;
+
+        for (const key of monitoringKeys) {
+           const val = await env.webbusdb.get(key.name);
+           if (val) {
+               const parsed = JSON.parse(val);
+               if (parsed.active && parsed.startTime > globalStop && parsed.cycleCount < parsed.maxCycles) {
+                  monitorings[parsed.stationId] = parsed;
+               }
+           }
+        }
+
+        return new Response(JSON.stringify({ snapshots, monitorings }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ 
+          error: 'Failed to fetch snapshots',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
     // Continuous bus monitoring endpoint (always returns busData when upstream API succeeds)
     if (request.method === 'POST' && url.pathname === '/api/fetch-bus') {
@@ -551,12 +587,15 @@ export default {
 
         let filteredBusData = busData;
         if (busNumbers && busNumbers.length > 0 && busData.length > 0) {
-          filteredBusData = busData.filter((bus) =>
+          filteredBusData = busData.filter(bus =>
             busNumbers.some((num: string) => bus.route_no === num.trim())
           );
           console.log(`Filtering for buses: ${busNumbers.join(', ')}`);
           console.log(`Found ${filteredBusData.length} matching buses out of ${busData.length} total`);
         }
+        (filteredBusData as any)._source = (busData as any)._source;
+
+        await saveBusSnapshot(env, stationId, filteredBusData);
 
         const timestamp = new Date().toLocaleString('en-US', {
           timeZone: 'Asia/Shanghai',
@@ -892,6 +931,7 @@ export default {
               console.log(`Cron filtering for buses: ${monitoringData.busNumbers.join(', ')}`);
               console.log(`Cron found ${filteredBusData.length} matching buses out of ${busData.length} total`);
             }
+            (filteredBusData as any)._source = (busData as any)._source;
             
             // Format message
             const cycleNum = monitoringData.cycleCount + 1;
