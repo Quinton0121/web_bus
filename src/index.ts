@@ -1,11 +1,8 @@
 // Cloudflare Worker entrypoint for KV-based bot/bus data storage
 export interface Env {
   webbusdb: KVNamespace;
-  // Environment variables for sensitive data
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
-  WEBHOOK_ID_TRIGGER?: string;
-  WEBHOOK_ID_TELEGRAM?: string;
 }
 
 export default {

@@ -13,5 +13,8 @@
 	"devDependencies": {
 		"concurrently": "^9.1.2",
 		"serve": "^14.2.4"
+	},
+	"dependencies": {
+		"puppeteer": "^24.40.0"
 	}
 }
