@@ -255,29 +255,19 @@ function snapshotKeyForStation(stationId: string): string {
 }
 
 async function saveBusSnapshot(env: Env, stationId: string, buses: BusData[]): Promise<void> {
-  const key = snapshotKeyForStation(stationId);
-  const snapshot = {
+  const str = await env.webbusdb.get('all_snapshots');
+  const all = str ? JSON.parse(str) : {};
+  all[stationId] = {
     updatedAt: new Date().toISOString(),
     buses,
     source: (buses as any)._source || 'Unknown'
   };
-  await env.webbusdb.put(key, JSON.stringify(snapshot));
+  await env.webbusdb.put('all_snapshots', JSON.stringify(all));
 }
 
 async function loadAllSnapshots(env: Env): Promise<Record<string, { updatedAt: string; buses: BusData[] }>> {
-  const { keys } = await env.webbusdb.list({ prefix: SNAPSHOT_PREFIX });
-  const snapshots: Record<string, { updatedAt: string; buses: BusData[] }> = {};
-  for (const k of keys) {
-    const raw = await env.webbusdb.get(k.name);
-    if (!raw) continue;
-    const stationId = decodeURIComponent(k.name.slice(SNAPSHOT_PREFIX.length));
-    try {
-      snapshots[stationId] = JSON.parse(raw);
-    } catch {
-      /* skip */
-    }
-  }
-  return snapshots;
+  const str = await env.webbusdb.get('all_snapshots');
+  return str ? JSON.parse(str) : {};
 }
 
 // Send message to Telegram
@@ -413,8 +403,10 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
       isMorningSession: true,
     };
 
-    const monitoringKey = `monitoring_morning_${Date.now()}`;
-    await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+    const strM = await env.webbusdb.get('all_monitorings');
+    const allM = strM ? JSON.parse(strM) : {};
+    allM[stationId] = monitoringData;
+    await env.webbusdb.put('all_monitorings', JSON.stringify(allM));
 
     const busData = await fetchBusInfo(env, stationId, busNumbers);
     const filteredBusData = busData.filter((bus) =>
@@ -437,7 +429,8 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
 
     if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
       console.error('[DEBUG] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing — cannot send morning notification.');
-      await env.webbusdb.delete(monitoringKey);
+      delete allM[stationId];
+      await env.webbusdb.put('all_monitorings', JSON.stringify(allM));
       return;
     }
 
@@ -445,12 +438,13 @@ async function handleMorningNotifications(env: Env, forceTest: boolean = false):
 
     if (success) {
       await env.webbusdb.put('lastMorningNotification', today);
-      monitoringData.cycleCount = 1;
-      await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+      allM[stationId].cycleCount = 1;
+      await env.webbusdb.put('all_monitorings', JSON.stringify(allM));
       console.log('Morning monitoring session started successfully');
     } else {
       console.error('Failed to start morning monitoring session (Telegram send failed)');
-      await env.webbusdb.delete(monitoringKey);
+      delete allM[stationId];
+      await env.webbusdb.put('all_monitorings', JSON.stringify(allM));
     }
   } catch (error) {
     console.error('Error in morning notification:', error);
@@ -531,29 +525,26 @@ export default {
     // Snapshot endpoint
     if (request.method === 'GET' && url.pathname === '/api/snapshots') {
       try {
-        const { keys: snapshotKeys } = await env.webbusdb.list({ prefix: 'snapshot_' });
-        const snapshots: Record<string, any> = {};
-        for (const key of snapshotKeys) {
-          const stationId = decodeURIComponent(key.name.slice(9)); // length of 'snapshot_'
-          const val = await env.webbusdb.get(key.name);
-          if (val) snapshots[stationId] = JSON.parse(val);
-        }
+        const strS = await env.webbusdb.get('all_snapshots');
+        const snapshots: Record<string, any> = strS ? JSON.parse(strS) : {};
 
-        const { keys: monitoringKeys } = await env.webbusdb.list({ prefix: 'monitoring_' });
-        const monitorings: Record<string, any> = {};
+        const strM = await env.webbusdb.get('all_monitorings');
+        let monitorings: Record<string, any> = strM ? JSON.parse(strM) : {};
         
-        // Use the same global stop logic as the cron to filter out dead sessions
         const globalStopStr = await env.webbusdb.get('global_stop_timestamp');
         const globalStop = globalStopStr ? parseInt(globalStopStr, 10) : 0;
 
-        for (const key of monitoringKeys) {
-           const val = await env.webbusdb.get(key.name);
-           if (val) {
-               const parsed = JSON.parse(val);
-               if (parsed.active && parsed.startTime > globalStop && parsed.cycleCount < parsed.maxCycles) {
-                  monitorings[parsed.stationId] = parsed;
-               }
+        let monitoringsChanged = false;
+        for (const [stationId, parsed] of Object.entries(monitorings)) {
+           const p = parsed as any;
+           if (!(p.active && p.startTime > globalStop && p.cycleCount < p.maxCycles)) {
+              delete monitorings[stationId];
+              monitoringsChanged = true;
            }
+        }
+        
+        if (monitoringsChanged) {
+           await env.webbusdb.put('all_monitorings', JSON.stringify(monitorings));
         }
 
         return new Response(JSON.stringify({ snapshots, monitorings }), {
@@ -631,8 +622,11 @@ export default {
               interval: 10000,
               active: true
             };
-            monitoringKey = `monitoring_${stationId}_${Date.now()}`;
-            await env.webbusdb.put(monitoringKey, JSON.stringify(monitoringData));
+            const strM = await env.webbusdb.get('all_monitorings');
+            const allM = strM ? JSON.parse(strM) : {};
+            allM[stationId] = monitoringData;
+            await env.webbusdb.put('all_monitorings', JSON.stringify(allM));
+            monitoringKey = 'started';
             console.log('First message sent, cron will handle remaining cycles');
           }
         } else {
@@ -681,14 +675,8 @@ export default {
     if (request.method === 'POST' && url.pathname === '/api/stop-monitoring') {
       try {
         // 1. Delete all active monitoring sessions in KV
-        const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
-        let stoppedCount = 0;
-        
-        for (const key of keys) {
-          await env.webbusdb.delete(key.name);
-          console.log(`Deleted monitoring session: ${key.name}`);
-          stoppedCount++;
-        }
+        await env.webbusdb.delete('all_monitorings');
+        let stoppedCount = 1;
 
         // Add a global stop timestamp because KV list() can take up to 60s to reflect newly created sessions
         await env.webbusdb.put('global_stop_timestamp', Date.now().toString());
@@ -880,39 +868,24 @@ export default {
       console.log('handleMorningNotifications completed');
       
       // Get all monitoring sessions
-      const { keys } = await env.webbusdb.list({ prefix: 'monitoring_' });
+      const strM = await env.webbusdb.get('all_monitorings');
+      if (!strM) return;
+      const monitorings = JSON.parse(strM);
+      let monitoringsChanged = false;
       
-      for (const key of keys) {
-        const monitoringDataStr = await env.webbusdb.get(key.name);
-        if (!monitoringDataStr) continue;
+      const globalStopStr = await env.webbusdb.get('global_stop_timestamp');
+      const globalStop = globalStopStr ? parseInt(globalStopStr, 10) : 0;
+
+      for (const [stationId, mData] of Object.entries(monitorings)) {
+        const monitoringData = mData as any;
         
-        const monitoringData = JSON.parse(monitoringDataStr);
-        
-        // Check if monitoring is still active
-        if (!monitoringData.active) {
-          console.log(`Deleting inactive monitoring session: ${key.name}`);
-          await env.webbusdb.delete(key.name);
+        if (!monitoringData.active || monitoringData.startTime <= globalStop || monitoringData.cycleCount >= monitoringData.maxCycles) {
+          console.log(`Deleting inactive/zombie/completed monitoring session for: ${stationId}`);
+          delete monitorings[stationId];
+          monitoringsChanged = true;
           continue;
         }
 
-        // Check if session was created before the latest global stop command
-        const globalStopStr = await env.webbusdb.get('global_stop_timestamp');
-        if (globalStopStr) {
-          const globalStop = parseInt(globalStopStr, 10);
-          if (monitoringData.startTime <= globalStop) {
-            console.log(`Deleting zombie session created before global stop: ${key.name}`);
-            await env.webbusdb.delete(key.name);
-            continue;
-          }
-        }
-        
-        // Check if we've reached max cycles
-        if (monitoringData.cycleCount >= monitoringData.maxCycles) {
-          console.log(`Monitoring completed for ${monitoringData.stationId}`);
-          await env.webbusdb.delete(key.name);
-          continue;
-        }
-        
         // Check if enough time has passed for next cycle
         const timeSinceStart = Date.now() - monitoringData.startTime;
         const expectedCycles = Math.floor(timeSinceStart / monitoringData.interval);
@@ -967,7 +940,7 @@ export default {
               
               // Update cycle count
               monitoringData.cycleCount = cycleNum;
-              await env.webbusdb.put(key.name, JSON.stringify(monitoringData));
+              monitoringsChanged = true;
             } else {
               console.error(`Failed to send cycle ${cycleNum} for ${monitoringData.stationId}`);
             }
@@ -976,6 +949,10 @@ export default {
             console.error(`Error in monitoring cycle for ${monitoringData.stationId}:`, error);
           }
         }
+      }
+      
+      if (monitoringsChanged) {
+         await env.webbusdb.put('all_monitorings', JSON.stringify(monitorings));
       }
     } catch (error) {
       console.error('Cron execution error:', error);
