@@ -1,17 +1,10 @@
 async function test() {
-  const url = 'https://webbus-worker.quinton0121.workers.dev/api/fetch-bus';
+  const url = 'https://webbus-worker.quinton0121.workers.dev/api/snapshots';
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stationId: 'T408',
-        busNumbers: ['11,39']
-      })
-    });
+    const res = await fetch(url);
     console.log('Status:', res.status);
     const text = await res.text();
-    console.log('Response:', text);
+    console.log('Response:', text.slice(0, 300));
   } catch (err) {
     console.error('Error:', err);
   }

@@ -588,7 +588,7 @@ export default {
         let filteredBusData = busData;
         if (busNumbers && busNumbers.length > 0 && busData.length > 0) {
           filteredBusData = busData.filter(bus =>
-            busNumbers.some((num: string) => bus.route_no === num.trim())
+            busNumbers.some((num: string) => String(bus.route_no || bus.num) === num.trim())
           );
           console.log(`Filtering for buses: ${busNumbers.join(', ')}`);
           console.log(`Found ${filteredBusData.length} matching buses out of ${busData.length} total`);
@@ -926,7 +926,7 @@ export default {
             let filteredBusData = busData;
             if (monitoringData.busNumbers && monitoringData.busNumbers.length > 0) {
               filteredBusData = busData.filter(bus => 
-                monitoringData.busNumbers.some((num: string) => bus.route_no === num.trim())
+                monitoringData.busNumbers.some((num: string) => String(bus.route_no || bus.num) === num.trim())
               );
               console.log(`Cron filtering for buses: ${monitoringData.busNumbers.join(', ')}`);
               console.log(`Cron found ${filteredBusData.length} matching buses out of ${busData.length} total`);

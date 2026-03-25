@@ -321,17 +321,6 @@
         <div class="version-indicator" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #666; z-index: 1000;">
             checking api v1.4
         </div>
-        <!-- Status Bar -->
-        <div id="statusBar" style="background:#e0e7ff; color:#3730a3; padding:8px 16px; font-size:13px; font-weight:500; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #c7d2fe;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <i class="fas fa-server"></i>
-                <span id="apiBaseDisplay">Connecting...</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <i id="syncIcon" class="fas fa-sync-alt"></i>
-                <span id="countdownDisplay">Next sync: --s</span>
-            </div>
-        </div>
         <div class="form-container">
             <div class="max-w-2xl mx-auto">
                 <!-- 已添加的公交站 - 最重要，放在最顶部 -->
@@ -924,7 +913,8 @@
                 let sourceHtml = '';
                 if (snap && snap.source) {
                     const color = snap.source.includes('Proxy') ? '#ef4444' : '#10b981';
-                    sourceHtml = `<div style="font-size: 10px; color: ${color}; text-align: right; margin-top: -8px; margin-bottom: 4px; font-weight: 500;">API: ${snap.source}</div>`;
+                    const displayTxt = snap.source.includes('Proxy') ? 'Old API' : 'dsat.gov.mo';
+                    sourceHtml = `<div style="font-size: 10px; color: ${color}; text-align: right; margin-top: -8px; margin-bottom: 4px; font-weight: 500;">API: ${displayTxt}</div>`;
                 }
 
                 let monHtml = '';
@@ -1298,22 +1288,11 @@
                 });
             }
 
-            const apiBaseDisplay = document.getElementById('apiBaseDisplay');
-            if (apiBaseDisplay) {
-                const displayUrl = API_BASE.includes('workers.dev') ? 'Live Cloud API' : API_BASE;
-                apiBaseDisplay.textContent = `API: ${displayUrl} (${API_BASE})`;
-            }
-
-            const countdownDisplay = document.getElementById('countdownDisplay');
-            const syncIcon = document.getElementById('syncIcon');
             let refreshInterval = 20;
             let timeUntilNext = refreshInterval;
 
             async function refreshSnapshotsOnly() {
                 try {
-                    if (syncIcon) syncIcon.classList.add('fa-spin');
-                    if (countdownDisplay) countdownDisplay.textContent = 'Fetching data...';
-                    
                     const r = await fetch(`${API_BASE}/api/snapshots`);
                     if (!r.ok) return;
                     const data = await r.json();
@@ -1323,9 +1302,7 @@
                 } catch (_) { 
                     /* ignore */ 
                 } finally {
-                    if (syncIcon) syncIcon.classList.remove('fa-spin');
                     timeUntilNext = refreshInterval; 
-                    if (countdownDisplay) countdownDisplay.textContent = `Next sync: ${timeUntilNext}s`;
                 }
             }
 
@@ -1334,10 +1311,6 @@
                 timeUntilNext--;
                 if (timeUntilNext <= 0) {
                     refreshSnapshotsOnly();
-                } else {
-                    if (countdownDisplay && (!syncIcon || !syncIcon.classList.contains('fa-spin'))) {
-                        countdownDisplay.textContent = `Next sync: ${timeUntilNext}s`;
-                    }
                 }
                 
                 const nowSecs = new Date().getSeconds();
