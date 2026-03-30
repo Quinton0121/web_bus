@@ -199,13 +199,28 @@ object BusDataFetcher {
                 }
                 logger?.invoke("🔍 [DEBUG] routeInfo has ${routeInfo.length()} stations")
 
-                // Find the station in the route
+                // Find the station in the route using prefix matching
                 var stationIndex = -1
+                val allStaCodes = mutableListOf<String>()
+                
                 for (i in 0 until routeInfo.length()) {
                     val info = routeInfo.getJSONObject(i)
-                    if (info.optString("staCode") == stationId) {
+                    val sc = info.optString("staCode")
+                    allStaCodes.add(sc)
+                    
+                    if (sc.startsWith(stationId)) {
                         stationIndex = i
+                        logger?.invoke("   [Debug] Found station match: $sc (at index $i)")
                         break
+                    }
+                }
+
+                if (stationIndex == -1) {
+                    logger?.invoke("   [Warning] Station $stationId not found in route $routeStr")
+                    // Log a few available codes to help the user
+                    if (allStaCodes.isNotEmpty()) {
+                        val sample = allStaCodes.take(5).joinToString(", ")
+                        logger?.invoke("   [Debug] Sample codes on this route: $sample...")
                     }
                 }
 
