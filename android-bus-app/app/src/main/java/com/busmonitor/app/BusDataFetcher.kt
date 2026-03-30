@@ -91,12 +91,7 @@ object BusDataFetcher {
         cookie: String,
         logger: ((String) -> Unit)? = null
     ): FetchResult? = withContext(Dispatchers.IO) {
-        if (token.isBlank()) {
-            logger?.invoke("🔍 [DEBUG] Token is blank, skipping DSAT")
-            return@withContext null
-        }
-        logger?.invoke("🔍 [DEBUG] Token: ${token.take(20)}...")
-        logger?.invoke("🔍 [DEBUG] Cookie: ${cookie.take(60)}...")
+        logger?.invoke("🔍 [Debug] Initializing DSAT fetch (cookie present: ${cookie.isNotBlank()})")
         try {
             val result = fetchFromDsat(stationId, busNumbers, token, cookie, logger)
             if (result.buses.isNotEmpty()) {
