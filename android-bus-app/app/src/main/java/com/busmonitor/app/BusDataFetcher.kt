@@ -144,15 +144,16 @@ object BusDataFetcher {
                 "&routeName=${URLEncoder.encode(routeStr, "UTF-8")}" +
                 "&dir=0&lang=zh-tw&routeType=2&device=web"
 
+            val userAgent = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                
             val request = Request.Builder()
                 .url("https://bis.dsat.gov.mo:37812/macauweb/routestation/bus")
                 .post(formBody.toRequestBody("application/x-www-form-urlencoded; charset=UTF-8".toMediaType()))
                 .header("Accept", "application/json, text/javascript, */*; q=0.01")
                 .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
                 .header("Connection", "keep-alive")
-                .header("User-Agent",
-                    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
-                    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("User-Agent", userAgent)
                 .header("Origin", "https://bis.dsat.gov.mo:37812")
                 .header("Referer",
                     "https://bis.dsat.gov.mo:37812/macauweb/routeLine.html" +
@@ -161,15 +162,25 @@ object BusDataFetcher {
                 .header("Sec-Fetch-Dest", "empty")
                 .header("Sec-Fetch-Mode", "cors")
                 .header("Sec-Fetch-Site", "same-origin")
+                .header("Sec-CH-UA", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
+                .header("Sec-CH-UA-Mobile", "?1")
+                .header("Sec-CH-UA-Platform", "\"Android\"")
                 .header("Cookie", cookie)
                 .header("token", token)
                 .build()
 
             val response = client.newCall(request).execute()
-            logger?.invoke("🔍 [DEBUG] DSAT HTTP ${response.code} for route $routeStr")
+            val code = response.code
+            val body = response.body?.string() ?: ""
+            response.close()
+            
+            logger?.invoke("🔍 [Debug] DSAT HTTP $code for route $routeStr")
+            if (code == 403 || code == 401) {
+                logger?.invoke("   [Error] DSAT rejected token (Forbidden/Unauthorized)")
+            }
+            
             if (response.isSuccessful) {
-                val body = response.body?.string() ?: continue
-                logger?.invoke("🔍 [DEBUG] Response: ${body.take(150)}...")
+                logger?.invoke("   [Response] ${body.take(100)}...")
                 val json = JSONObject(body)
                 val data = json.optJSONObject("data")
                 if (data == null) {
