@@ -166,12 +166,27 @@ class MonitoringSession(
         val message = BusDataFetcher.formatForTelegram(
             result, stationId, busNumbers, currentCycle, MAX_CYCLES
         )
-        onLog("📤 Sending to Telegram... (source: ${result.source})")
-        val sent = TelegramSender.send(botToken, chatId, message)
-        if (sent) {
-            onLog("✅ Message $currentCycle sent")
+        
+        // Mask chatId for privacy but show prefix/length for debugging
+        val maskedChatId = if (chatId.length > 6) {
+            chatId.take(3) + "..." + chatId.takeLast(3)
+        } else chatId
+        
+        onLog("📤 Sending to Telegram... (chatId: $maskedChatId, source: ${result.source})")
+        
+        val response = TelegramSender.send(botToken, chatId, message)
+        if (response.ok) {
+            onLog("✅ Message $currentCycle sent successfully")
+            // Optionally log a bit of the response for the user to see it's really from Telegram
+            response.body?.let { 
+                if (it.contains("message_id")) {
+                    onLog("   [Debug] Telegram response: OK (message_id present)")
+                }
+            }
         } else {
             onLog("❌ Telegram send failed for message $currentCycle")
+            onLog("   [Error] ${response.error ?: "Unknown error"}")
+            response.body?.let { onLog("   [Response] $it") }
         }
     }
 }
