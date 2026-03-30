@@ -78,15 +78,14 @@ class MonitoringSession(
             return
         }
 
-        // Step 1: Extract token
-        onLog("🔑 Extracting DSAT token...")
+        // Step 1: Initialize cookies (huid)
+        onLog("🍪 Initializing DSAT session...")
         val creds = TokenExtractor.extract(context, busNumbers.firstOrNull() ?: "11")
-        if (creds.token.isBlank()) {
-            onLog("⚠️ Token extraction failed — will use fallback API")
+        cookie = creds.cookie
+        if (cookie.isBlank()) {
+            onLog("⚠️ Cookie extraction failed — will use fallback API")
         } else {
-            token = creds.token
-            cookie = creds.cookie
-            onLog("✅ Token obtained")
+            onLog("✅ Session initialized")
         }
 
         // Step 2–5: Fetch → Send → Wait loop
@@ -98,25 +97,10 @@ class MonitoringSession(
             try {
                 onLog("📡 Fetching bus data ($currentCycle/$MAX_CYCLES)...")
 
-                // Try DSAT first
+                // Try DSAT first (Token is now generated automatically inside fetchFromDsatOnly)
                 var result = BusDataFetcher.fetchFromDsatOnly(
-                    stationId, busNumbers, token, cookie, onLog
+                    stationId, busNumbers, "", cookie, onLog
                 )
-
-                // DSAT failed/empty → might be token expired
-                if (result == null && token.isNotBlank()) {
-                    onLog("🔄 DSAT returned no data — re-extracting token...")
-                    val newCreds = TokenExtractor.extract(context, busNumbers.firstOrNull() ?: "11")
-                    if (newCreds.token.isNotBlank()) {
-                        token = newCreds.token
-                        cookie = newCreds.cookie
-                        onLog("✅ New token obtained — retrying DSAT...")
-                        // Retry DSAT with fresh token
-                        result = BusDataFetcher.fetchFromDsatOnly(
-                            stationId, busNumbers, token, cookie, onLog
-                        )
-                    }
-                }
 
                 // Still no data from DSAT → fall back to old proxy
                 if (result == null) {

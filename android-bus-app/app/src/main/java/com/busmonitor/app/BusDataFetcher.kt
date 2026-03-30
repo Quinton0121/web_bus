@@ -132,7 +132,7 @@ object BusDataFetcher {
     private fun fetchFromDsat(
         stationId: String,
         busNumbers: List<String>,
-        token: String,
+        token: String, // Kept for signature but will be regenerated
         cookie: String,
         logger: ((String) -> Unit)? = null
     ): FetchResult {
@@ -140,9 +140,19 @@ object BusDataFetcher {
 
         for (route in busNumbers) {
             val routeStr = route.trim()
-            val formBody = "action=dy" +
-                "&routeName=${URLEncoder.encode(routeStr, "UTF-8")}" +
-                "&dir=0&lang=zh-tw&routeType=2&device=web"
+            val params = mapOf(
+                "action" to "dy",
+                "routeName" to routeStr,
+                "dir" to "0",
+                "lang" to "zh-tw",
+                "routeType" to "2",
+                "device" to "web"
+            )
+            
+            val dynamicToken = DSATTokenGenerator.generate(params)
+            val formBody = params.entries.joinToString("&") { (k, v) ->
+                "$k=${java.net.URLEncoder.encode(v, "UTF-8")}"
+            }
 
             val userAgent = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
@@ -166,7 +176,7 @@ object BusDataFetcher {
                 .header("Sec-CH-UA-Mobile", "?1")
                 .header("Sec-CH-UA-Platform", "\"Android\"")
                 .header("Cookie", cookie)
-                .header("token", token)
+                .header("token", dynamicToken)
                 .build()
 
             val response = client.newCall(request).execute()

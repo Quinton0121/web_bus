@@ -18,11 +18,10 @@ object TokenExtractor {
 
     data class Credentials(val token: String, val cookie: String)
 
-    private const val TIMEOUT_MS = 30_000L
+    private const val TIMEOUT_MS = 20_000L
 
     /**
-     * Extract DSAT token + cookies by loading the route page in a hidden WebView.
-     * Must be called from a coroutine; internally posts to main thread for WebView ops.
+     * Extract DSAT cookies by loading the route page in a hidden WebView.
      */
     suspend fun extract(context: Context, routeName: String = "11"): Credentials =
         withContext(Dispatchers.Main) {
@@ -35,16 +34,22 @@ object TokenExtractor {
                 var webView: WebView? = createWebView(context)
                 var completed = false
 
-                val timeoutRunnable = Runnable {
+                val finalize = {
                     if (!completed) {
                         completed = true
+                        CookieManager.getInstance().flush()
+                        val cookieStr = CookieManager.getInstance()
+                            .getCookie("https://bis.dsat.gov.mo:37812") ?: ""
+                        
+                        android.util.Log.d("TokenExtractor", "Cookie captured: ${cookieStr.take(60)}...")
+                        
                         destroyWebView(webView)
                         webView = null
-                        if (cont.isActive) cont.resume(
-                            Credentials("", "")  // empty = failed
-                        )
+                        if (cont.isActive) cont.resume(Credentials("", cookieStr))
                     }
                 }
+
+                val timeoutRunnable = Runnable { finalize() }
                 Handler(Looper.getMainLooper()).postDelayed(timeoutRunnable, TIMEOUT_MS)
 
                 cont.invokeOnCancellation {
@@ -57,51 +62,16 @@ object TokenExtractor {
                 }
 
                 webView?.webViewClient = object : WebViewClient() {
-                    override fun shouldInterceptRequest(
-                        view: WebView?,
-                        request: WebResourceRequest?
-                    ): WebResourceResponse? {
-                        val url = request?.url?.toString() ?: ""
-                        if (url.contains("/macauweb/routestation/bus") && !completed) {
-                            val token = request?.requestHeaders?.get("token") ?: ""
-                            if (token.isNotBlank()) {
-                                completed = true
-                                Handler(Looper.getMainLooper()).removeCallbacks(timeoutRunnable)
-
-                                // Read cookies from CookieManager
-                                // (WebResourceRequest.getRequestHeaders() does NOT include cookies on Android)
-                                CookieManager.getInstance().flush()
-                                val cookieStr = CookieManager.getInstance()
-                                    .getCookie("https://bis.dsat.gov.mo:37812") ?: ""
-
-                                android.util.Log.d("TokenExtractor",
-                                    "Token: ${token.take(20)}... Cookie: ${cookieStr.take(80)}...")
-
-                                Handler(Looper.getMainLooper()).post {
-                                    destroyWebView(webView)
-                                    webView = null
-                                }
-
-                                if (cont.isActive) cont.resume(Credentials(token, cookieStr))
-                            }
-                        }
-                        return super.shouldInterceptRequest(view, request)
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        // Once page is finished, we likely have the huid cookie
+                        finalize()
                     }
 
                     override fun onReceivedError(
                         view: WebView?, request: WebResourceRequest?,
                         error: WebResourceError?
                     ) {
-                        // Only fail on main frame errors
-                        if (request?.isForMainFrame == true && !completed) {
-                            completed = true
-                            Handler(Looper.getMainLooper()).removeCallbacks(timeoutRunnable)
-                            Handler(Looper.getMainLooper()).post {
-                                destroyWebView(webView)
-                                webView = null
-                            }
-                            if (cont.isActive) cont.resume(Credentials("", ""))
-                        }
+                        if (request?.isForMainFrame == true) finalize()
                     }
                 }
 
