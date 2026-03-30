@@ -10,9 +10,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONArray
@@ -168,6 +172,28 @@ class MainActivity : AppCompatActivity() {
             val stops = AppConfig.getBusStops(applicationContext).toMutableList()
             stops.removeAll { it.stationId == stationId }
             AppConfig.saveBusStops(applicationContext, stops)
+        }
+
+        /** Check if battery optimizations are ignored for this app. */
+        @JavascriptInterface
+        fun isIgnoringBatteryOptimizations(): Boolean {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val packageName = packageName
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                return pm.isIgnoringBatteryOptimizations(packageName)
+            }
+            return true
+        }
+
+        /** Request user to ignore battery optimizations for this app. */
+        @JavascriptInterface
+        fun requestIgnoreBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
         }
     }
 

@@ -328,6 +328,25 @@
             </div>
         </div>
 
+        <!-- Background Optimization Section -->
+        <div style="margin-top: 16px;">
+            <div class="section-toggle" onclick="toggleSection('optimizationSection', this)">
+                <span class="section-title" style="margin:0">Background Optimization</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div id="optimizationSection" class="collapsible">
+                <div id="optimizationStatus" style="padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+                    <!-- status will be injected here -->
+                </div>
+                <button id="optimizeBtn" class="form-btn btn-primary" onclick="requestOptimization()" style="display:none">
+                    <i class="fas fa-bolt"></i> Optimize Background Execution
+                </button>
+                <div style="font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.4;">
+                    To ensure the monitor runs reliably when the screen is locked, please set the app's battery usage to <b>"Unrestricted"</b>.
+                </div>
+            </div>
+        </div>
+
         <!-- spacer at bottom -->
         <div style="height: 40px;"></div>
     </div>
@@ -341,7 +360,38 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadBusStops();
             loadTelegramConfig();
+            checkOptimizationStatus();
         });
+
+        function checkOptimizationStatus() {
+            try {
+                const ignored = Android.isIgnoringBatteryOptimizations();
+                const statusEl = document.getElementById('optimizationStatus');
+                const btn = document.getElementById('optimizeBtn');
+                
+                if (ignored) {
+                    statusEl.style.background = 'rgba(34,197,94,0.15)';
+                    statusEl.style.color = '#22c55e';
+                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Background execution optimized (Unrestricted)';
+                    btn.style.display = 'none';
+                } else {
+                    statusEl.style.background = 'rgba(234,179,8,0.15)';
+                    statusEl.style.color = '#eab308';
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Battery optimization is active (May kill background process)';
+                    btn.style.display = 'block';
+                }
+            } catch(e) {}
+        }
+
+        function requestOptimization() {
+            try {
+                Android.requestIgnoreBatteryOptimizations();
+                // Refresh status after a delay to see if user changed it
+                setTimeout(checkOptimizationStatus, 5000);
+            } catch(e) {
+                showToast('Feature not available');
+            }
+        }
 
         function loadBusStops() {
             try {

@@ -86,6 +86,7 @@ class MonitoringService : Service() {
         activeSession = null
         releaseWakeLock()
         stopForeground(true)
+        serviceScope.launch { MonitoringEventBus.setMonitoringState(false) }
         stopSelf()
     }
 
