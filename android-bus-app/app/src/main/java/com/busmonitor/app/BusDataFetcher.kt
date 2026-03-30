@@ -225,22 +225,19 @@ object BusDataFetcher {
                 }
 
                 if (stationIndex != -1) {
-                    // Look backwards from the station to find the closest bus
-                    var minStops = Int.MAX_VALUE
+                    // Look backwards from the station to find all buses behind it
                     for (i in stationIndex downTo 0) {
                         val sInfo = routeInfo.getJSONObject(i)
                         val busInfo = sInfo.optJSONArray("busInfo")
                         if (busInfo != null && busInfo.length() > 0) {
                             val stopsAway = stationIndex - i
-                            if (stopsAway < minStops) {
-                                minStops = stopsAway
+                            // Add an entry for every bus found at this stop
+                            for (j in 0 until busInfo.length()) {
+                                processedData.add(
+                                    BusInfo(routeStr, 0, -1, remaining = stopsAway.toDouble())
+                                )
                             }
                         }
-                    }
-                    if (minStops < Int.MAX_VALUE) {
-                        processedData.add(
-                            BusInfo(routeStr, 0, -1, remaining = minStops.toDouble())
-                        )
                     }
                 }
             }
@@ -328,26 +325,20 @@ object BusDataFetcher {
             val grouped = result.buses.groupBy { "${it.routeNo}_${it.dir}" }
             for ((key, buses) in grouped) {
                 val routeNo = key.substringBefore("_")
+                // Sort by distance (remaining stops or minutes)
                 val sorted = buses.sortedBy { it.remaining ?: it.lastbus.toDouble() }
 
-                if (sorted.size == 1) {
-                    val bus = sorted[0]
-                    val detail = when {
-                        bus.remaining != null -> "${(bus.remaining * 10).toLong() / 10.0} stops"
-                        bus.lastbus == -1 -> "Running"
-                        else -> "${bus.lastbus}min"
-                    }
-                    sb.appendLine("Bus $routeNo: $detail")
-                } else {
-                    val d = sorted.map { bus ->
-                        when {
-                            bus.remaining != null -> "${(bus.remaining * 10).toLong() / 10.0}"
-                            bus.lastbus == -1 -> "Now"
-                            else -> "${bus.lastbus}min"
+                val d = sorted.take(2).map { bus ->
+                    when {
+                        bus.remaining != null -> {
+                            val r = bus.remaining
+                            if (r == 0.0) "Now" else "${r.toInt()}"
                         }
+                        bus.lastbus == -1 -> "Now"
+                        else -> "${bus.lastbus}"
                     }
-                    sb.appendLine("Bus $routeNo: ${d.joinToString(" -> ")}")
                 }
+                sb.appendLine("Bus $routeNo : ${d.joinToString(" -> ")}")
             }
         }
 
