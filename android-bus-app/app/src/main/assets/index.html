@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bus Monitor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ─── Header ─── */
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            padding: 20px 16px 16px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.4);
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .header .version {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+
+        /* ─── Content ─── */
+        .content { padding: 12px; }
+
+        /* ─── Cards ─── */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 16px 0 8px;
+        }
+        .bus-card {
+            background: linear-gradient(145deg, #1e293b, #253348);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .bus-card:active { transform: scale(0.98); }
+        .bus-card .station-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .bus-card .station-note {
+            font-size: 22px;
+            font-weight: 800;
+            color: #34d399;
+            margin: 2px 0;
+        }
+        .bus-card .bus-numbers {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .bus-card .card-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 6px;
+        }
+        .icon-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.9); }
+        .btn-play {
+            background: rgba(34,197,94,0.15);
+            color: #22c55e;
+        }
+        .btn-play:hover { background: rgba(34,197,94,0.3); }
+        .btn-delete {
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+        }
+        .btn-delete:hover { background: rgba(239,68,68,0.3); }
+
+        /* ─── Stop Button ─── */
+        .stop-btn {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 12px 0;
+            box-shadow: 0 4px 15px rgba(220,38,38,0.3);
+            display: none;
+        }
+        .stop-btn.visible { display: block; }
+        .stop-btn:active { transform: scale(0.98); }
+
+        /* ─── Log Panel ─── */
+        .log-panel {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            display: none;
+        }
+        .log-panel.visible { display: block; }
+        .log-entry {
+            color: #94a3b8;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .log-entry:last-child { border-bottom: none; }
+
+        /* ─── Collapsible Sections ─── */
+        .section-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+        .section-toggle i {
+            color: #64748b;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .section-toggle.open i { transform: rotate(180deg); }
+        .collapsible { display: none; }
+        .collapsible.open { display: block; }
+
+        /* ─── Forms ─── */
+        .form-group { margin-bottom: 12px; }
+        .form-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .form-input {
+            width: 100%;
+            height: 44px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus { border-color: #6366f1; }
+        .form-input::placeholder { color: #475569; }
+
+        .form-btn {
+            width: 100%;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .form-btn:active { transform: scale(0.98); }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: #fff;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #0f766e, #14b8a6);
+            color: #fff;
+        }
+
+        /* ─── Toast ─── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ─── Status indicator ─── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .status-idle {
+            background: rgba(100,116,139,0.2);
+            color: #94a3b8;
+        }
+        .status-active {
+            background: rgba(34,197,94,0.15);
+            color: #22c55e;
+        }
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .status-active .status-dot {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-bus"></i> Bus Monitor</h1>
+        <div class="version">v2.1 · Android Local</div>
+        <div style="margin-top: 8px;">
+            <span id="statusBadge" class="status-badge status-idle">
+                <span class="status-dot"></span> Idle
+            </span>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Bus Stop Cards -->
+        <div class="section-title">Bus Stops</div>
+        <div id="busCards"></div>
+
+        <!-- Stop Monitoring Button -->
+        <button id="stopBtn" class="stop-btn" onclick="doStop()">
+            <i class="fas fa-stop"></i> Stop Monitoring
+        </button>
+
+        <!-- Log Panel -->
+        <div id="logPanel" class="log-panel"></div>
+
+        <!-- Add Bus Stop Section -->
+        <div style="margin-top: 20px;">
+            <div class="section-toggle" onclick="toggleSection('addStopSection', this)">
+                <span class="section-title" style="margin:0">Add Bus Stop</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div id="addStopSection" class="collapsible">
+                <div class="form-group">
+                    <label class="form-label">Station ID</label>
+                    <input class="form-input" id="newStationId" placeholder="e.g. T408, M172">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bus Numbers (comma separated)</label>
+                    <input class="form-input" id="newBusNumbers" placeholder="e.g. 11,39,30">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note (optional)</label>
+                    <input class="form-input" id="newNote" placeholder="e.g. 中央公園">
+                </div>
+                <button class="form-btn btn-primary" onclick="addStop()">
+                    <i class="fas fa-plus"></i> Add Stop
+                </button>
+            </div>
+        </div>
+
+        <!-- Telegram Settings Section -->
+        <div style="margin-top: 16px;">
+            <div class="section-toggle" onclick="toggleSection('telegramSection', this)">
+                <span class="section-title" style="margin:0">Telegram Settings</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div id="telegramSection" class="collapsible">
+                <div class="form-group">
+                    <label class="form-label">Bot Token</label>
+                    <input class="form-input" id="botToken" placeholder="Enter Telegram Bot Token">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chat ID</label>
+                    <input class="form-input" id="chatId" placeholder="Enter Telegram Chat ID">
+                </div>
+                <button class="form-btn btn-secondary" onclick="saveTelegram()">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- spacer at bottom -->
+        <div style="height: 40px;"></div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        let isMonitoring = false;
+
+        /* ── Init ── */
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBusStops();
+            loadTelegramConfig();
+        });
+
+        function loadBusStops() {
+            try {
+                const cfg = JSON.parse(Android.loadConfig());
+                renderCards(cfg.busStops || []);
+                if (!cfg.hasTelegram) {
+                    toggleSection('telegramSection',
+                        document.querySelector('#telegramSection').previousElementSibling.querySelector('.section-toggle'));
+                }
+            } catch(e) {
+                console.error('loadConfig error', e);
+            }
+        }
+
+        function loadTelegramConfig() {
+            try {
+                const tg = JSON.parse(Android.loadTelegramSettings());
+                if (tg.botToken) document.getElementById('botToken').value = tg.botToken;
+                if (tg.chatId) document.getElementById('chatId').value = tg.chatId;
+            } catch(e) {}
+        }
+
+        function renderCards(stops) {
+            const container = document.getElementById('busCards');
+            container.innerHTML = '';
+            if (stops.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#475569;padding:20px;font-size:13px;">' +
+                    'No bus stops configured. Add one below.</div>';
+                return;
+            }
+            stops.forEach(stop => {
+                const nums = Array.isArray(stop.busNumbers)
+                    ? stop.busNumbers.join(', ')
+                    : stop.busNumbers;
+                const note = stop.note
+                    ? `<div class="station-note">${esc(stop.note)}</div>` : '';
+                const card = document.createElement('div');
+                card.className = 'bus-card';
+                card.innerHTML = `
+                    <div class="station-name">${esc(stop.stationId)}</div>
+                    ${note}
+                    <div class="bus-numbers">Buses: ${esc(nums)}</div>
+                    <div class="card-actions">
+                        <button class="icon-btn btn-play" onclick="doStart('${esc(stop.stationId)}', '${esc(JSON.stringify(stop.busNumbers))}')">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="icon-btn btn-delete" onclick="doDelete('${esc(stop.stationId)}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        /* ── Actions ── */
+        function doStart(stationId, busNumbersJson) {
+            if (isMonitoring) {
+                showToast('Session already running. Stop it first.');
+                return;
+            }
+            clearLog();
+            showLog(true);
+            Android.startMonitoring(stationId, busNumbersJson);
+        }
+
+        function doStop() {
+            Android.stopMonitoring();
+        }
+
+        function addStop() {
+            const sid = document.getElementById('newStationId').value.trim();
+            const nums = document.getElementById('newBusNumbers').value.trim();
+            const note = document.getElementById('newNote').value.trim();
+            if (!sid || !nums) {
+                showToast('Please fill Station ID and Bus Numbers');
+                return;
+            }
+            const busArr = JSON.stringify(nums.split(/[,，]/).map(s => s.trim()).filter(s => s));
+            Android.addBusStop(sid, busArr, note);
+            document.getElementById('newStationId').value = '';
+            document.getElementById('newBusNumbers').value = '';
+            document.getElementById('newNote').value = '';
+            loadBusStops();
+            showToast('Bus stop added');
+        }
+
+        function doDelete(stationId) {
+            Android.removeBusStop(stationId);
+            loadBusStops();
+            showToast('Bus stop removed');
+        }
+
+        function saveTelegram() {
+            const token = document.getElementById('botToken').value.trim();
+            const chatId = document.getElementById('chatId').value.trim();
+            if (!token || !chatId) {
+                showToast('Please fill both fields');
+                return;
+            }
+            Android.saveTelegramSettings(token, chatId);
+            showToast('Telegram settings saved');
+        }
+
+        /* ── Callbacks from Kotlin ── */
+        window.addLog = function(msg) {
+            const panel = document.getElementById('logPanel');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = msg;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        };
+
+        window.setMonitoringState = function(active) {
+            isMonitoring = active;
+            const badge = document.getElementById('statusBadge');
+            const stopBtn = document.getElementById('stopBtn');
+            if (active) {
+                badge.className = 'status-badge status-active';
+                badge.innerHTML = '<span class="status-dot"></span> Monitoring';
+                stopBtn.classList.add('visible');
+                showLog(true);
+            } else {
+                badge.className = 'status-badge status-idle';
+                badge.innerHTML = '<span class="status-dot"></span> Idle';
+                stopBtn.classList.remove('visible');
+            }
+        };
+
+        /* ── Helpers ── */
+        function showLog(show) {
+            document.getElementById('logPanel').classList.toggle('visible', show);
+        }
+        function clearLog() {
+            document.getElementById('logPanel').innerHTML = '';
+        }
+
+        function toggleSection(id, toggleEl) {
+            const el = document.getElementById(id);
+            el.classList.toggle('open');
+            if (toggleEl) toggleEl.classList.toggle('open');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        function esc(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+    </script>
+</body>
+</html>
