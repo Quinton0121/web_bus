@@ -199,29 +199,35 @@ object BusDataFetcher {
                 }
                 logger?.invoke("🔍 [DEBUG] routeInfo has ${routeInfo.length()} stations")
 
-                // Find the station in the route using prefix matching
+                // Find the station in the route: Prioritize exact match, then prefix match
                 var stationIndex = -1
-                val allStaCodes = mutableListOf<String>()
                 
+                // First pass: exact match
                 for (i in 0 until routeInfo.length()) {
                     val info = routeInfo.getJSONObject(i)
                     val sc = info.optString("staCode")
-                    allStaCodes.add(sc)
-                    
-                    if (sc.startsWith(stationId)) {
+                    if (sc == stationId) {
                         stationIndex = i
-                        logger?.invoke("   [Debug] Found station match: $sc (at index $i)")
+                        logger?.invoke("   [Debug] Found exact station match: $sc (at index $i)")
                         break
+                    }
+                }
+                
+                // Second pass: prefix match (if no exact match found)
+                if (stationIndex == -1) {
+                    for (i in 0 until routeInfo.length()) {
+                        val info = routeInfo.getJSONObject(i)
+                        val sc = info.optString("staCode")
+                        if (sc.startsWith(stationId)) {
+                            stationIndex = i
+                            logger?.invoke("   [Debug] Found prefix station match: $sc (at index $i)")
+                            break
+                        }
                     }
                 }
 
                 if (stationIndex == -1) {
                     logger?.invoke("   [Warning] Station $stationId not found in route $routeStr")
-                    // Log a few available codes to help the user
-                    if (allStaCodes.isNotEmpty()) {
-                        val sample = allStaCodes.take(5).joinToString(", ")
-                        logger?.invoke("   [Debug] Sample codes on this route: $sample...")
-                    }
                 }
 
                 if (stationIndex != -1) {
@@ -253,8 +259,10 @@ object BusDataFetcher {
         stationId: String,
         busNumbers: List<String>
     ): FetchResult {
+        // Strip suffix if present (e.g., T326/4 -> T326) for proxy compatibility
+        val baseStationId = stationId.substringBefore("/")
         val timestamp = System.currentTimeMillis()
-        val url = "https://motransportinfo.com/its/getStopInfo.php?ref=1&id=$stationId&_t=$timestamp"
+        val url = "https://motransportinfo.com/its/getStopInfo.php?ref=1&id=$baseStationId&_t=$timestamp"
 
         val request = Request.Builder()
             .url(url)
