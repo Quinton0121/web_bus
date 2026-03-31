@@ -134,8 +134,18 @@ object BusDataFetcher {
     ): FetchResult {
         val processedData = mutableListOf<BusInfo>()
 
-        for (route in busNumbers) {
-            val routeStr = route.trim()
+        for (routeRaw in busNumbers) {
+            val routeParts = routeRaw.trim().split("/")
+            val routeStr = routeParts[0]
+            val busSuffix = if (routeParts.size > 1) "/${routeParts[1]}" else ""
+            
+            // If busSuffix is provided, it overrides/appends to the base stationId for this bus only
+            val currentTargetStationId = if (busSuffix.isNotEmpty()) {
+                stationId.substringBefore("/") + busSuffix
+            } else {
+                stationId
+            }
+
             // Check both directions (0 and 1) for each route
             for (dir in listOf("0", "1")) {
                 val params = mapOf(
@@ -182,7 +192,7 @@ object BusDataFetcher {
                 val body = response.body?.string() ?: ""
                 response.close()
                 
-                logger?.invoke("🔍 [Debug] DSAT HTTP $code for route $routeStr (dir $dir)")
+                logger?.invoke("🔍 [Debug] DSAT HTTP $code for route $routeStr (dir $dir, target $currentTargetStationId)")
                 if (code == 403 || code == 401) {
                     logger?.invoke("   [Error] DSAT rejected token (Forbidden/Unauthorized)")
                 }
@@ -209,7 +219,7 @@ object BusDataFetcher {
                     for (i in 0 until routeInfo.length()) {
                         val info = routeInfo.getJSONObject(i)
                         val sc = info.optString("staCode")
-                        if (sc == stationId) {
+                        if (sc == currentTargetStationId) {
                             matchedIndices.add(i)
                             logger?.invoke("   [Debug] Found exact station match: $sc (at index $i, dir $dir)")
                             break
@@ -221,7 +231,7 @@ object BusDataFetcher {
                         for (i in 0 until routeInfo.length()) {
                             val info = routeInfo.getJSONObject(i)
                             val sc = info.optString("staCode")
-                            if (sc.startsWith(stationId)) {
+                            if (sc.startsWith(currentTargetStationId)) {
                                 matchedIndices.add(i)
                                 logger?.invoke("   [Debug] Found prefix station match: $sc (at index $i, dir $dir)")
                             }
