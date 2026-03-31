@@ -44,6 +44,14 @@ class MonitoringSession(
         }
         currentCycle = 0
         job = scope.launch {
+            val botToken = AppConfig.getTelegramBotToken(context)
+            val chatId = AppConfig.getTelegramChatId(context)
+
+            // Start polling for "stop" commands in parallel
+            val pollingJob = if (botToken.isNotBlank() && chatId.isNotBlank()) {
+                launch { pollForStopCommand(botToken, chatId) }
+            } else null
+
             try {
                 run()
             } catch (e: CancellationException) {
@@ -51,6 +59,7 @@ class MonitoringSession(
             } catch (e: Exception) {
                 onLog("❌ Error: ${e.message}")
             } finally {
+                pollingJob?.cancel()
                 onLog("🏁 Session ended – all resources released")
                 withContext(Dispatchers.Main) { onFinished() }
             }
@@ -171,6 +180,56 @@ class MonitoringSession(
             onLog("❌ Telegram send failed for message $currentCycle")
             onLog("   [Error] ${response.error ?: "Unknown error"}")
             response.body?.let { onLog("   [Response] $it") }
+        }
+    }
+
+    /**
+     * Polls Telegram for any new message from the user to stop the session.
+     */
+    private suspend fun pollForStopCommand(botToken: String, chatId: String) {
+        var lastUpdateId = -1
+        // Initial fetch to skip old messages (get the current state)
+        onLog("🔍 [Debug] Telegram polling started (chatId: $chatId)")
+
+        // Resolve webhook conflict if any (required for getUpdates to work)
+        val deleteRes = TelegramSender.deleteWebhook(botToken)
+        if (deleteRes.ok) {
+            onLog("🔍 [Debug] Webhook deleted/checked successfully")
+        } else {
+            onLog("⚠️ [Debug] deleteWebhook failed or not needed: ${deleteRes.error}")
+        }
+
+        val initialResponse = TelegramSender.getUpdates(botToken)
+        if (initialResponse.ok && initialResponse.updates.isNotEmpty()) {
+            lastUpdateId = initialResponse.updates.maxOf { it.updateId }
+            onLog("🔍 [Debug] Skipping ${initialResponse.updates.size} old messages. lastUpdateId: $lastUpdateId")
+        } else if (!initialResponse.ok) {
+            onLog("⚠️ [Debug] Initial Telegram poll failed: ${initialResponse.error}")
+        }
+
+        while (coroutineContext.isActive) {
+            val response = TelegramSender.getUpdates(botToken, lastUpdateId + 1)
+            
+            if (response.ok) {
+                for (update in response.updates) {
+                    lastUpdateId = update.updateId
+                    val receivedChatId = update.message?.chatId?.toString()
+                    if (receivedChatId != null) {
+                        onLog("🔍 [Debug] Message from $receivedChatId: ${update.message.text ?: "[no text]"}")
+                        // Stop if any message is received from the correct chatId
+                        if (receivedChatId == chatId || receivedChatId.endsWith(chatId) || chatId.endsWith(receivedChatId)) {
+                            onLog("🛑 Stop command received from Telegram: ${update.message.text ?: "[media]"}")
+                            stop()
+                            return
+                        } else {
+                            onLog("🔍 [Debug] chatId mismatch: received=$receivedChatId, expected=$chatId")
+                        }
+                    }
+                }
+            } else {
+                onLog("⚠️ [Debug] Telegram poll error: ${response.error}")
+            }
+            delay(5000) // Check every 5 seconds
         }
     }
 }

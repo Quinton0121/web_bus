@@ -72,13 +72,13 @@ class MonitoringService : Service() {
                 serviceScope.launch { MonitoringEventBus.postLog(msg) }
             },
             onFinished = {
-                serviceScope.launch { MonitoringEventBus.setMonitoringState(false) }
+                MonitoringEventBus.setMonitoringState(false)
                 stopForegroundService()
             }
         )
         
         activeSession?.start(serviceScope)
-        serviceScope.launch { MonitoringEventBus.setMonitoringState(true) }
+        MonitoringEventBus.setMonitoringState(true)
     }
 
     private fun stopForegroundService() {
@@ -86,7 +86,7 @@ class MonitoringService : Service() {
         activeSession = null
         releaseWakeLock()
         stopForeground(true)
-        serviceScope.launch { MonitoringEventBus.setMonitoringState(false) }
+        MonitoringEventBus.setMonitoringState(false)
         stopSelf()
     }
 
