@@ -135,119 +135,119 @@ object BusDataFetcher {
 
         for (route in busNumbers) {
             val routeStr = route.trim()
-            val params = mapOf(
-                "action" to "dy",
-                "routeName" to routeStr,
-                "dir" to "0",
-                "lang" to "zh-tw",
-                "routeType" to "2",
-                "device" to "web"
-            )
-            
-            val dynamicToken = DSATTokenGenerator.generate(params)
-            val formBody = params.entries.joinToString("&") { (k, v) ->
-                "$k=${java.net.URLEncoder.encode(v, "UTF-8")}"
-            }
-
-            val userAgent = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            // Check both directions (0 and 1) for each route
+            for (dir in listOf("0", "1")) {
+                val params = mapOf(
+                    "action" to "dy",
+                    "routeName" to routeStr,
+                    "dir" to dir,
+                    "lang" to "zh-tw",
+                    "routeType" to "2",
+                    "device" to "web"
+                )
                 
-            val request = Request.Builder()
-                .url("https://bis.dsat.gov.mo:37812/macauweb/routestation/bus")
-                .post(formBody.toRequestBody("application/x-www-form-urlencoded; charset=UTF-8".toMediaType()))
-                .header("Accept", "application/json, text/javascript, */*; q=0.01")
-                .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-                .header("Connection", "keep-alive")
-                .header("User-Agent", userAgent)
-                .header("Origin", "https://bis.dsat.gov.mo:37812")
-                .header("Referer",
-                    "https://bis.dsat.gov.mo:37812/macauweb/routeLine.html" +
-                    "?routeName=$routeStr&direction=0&language=zh-tw&ver=3.8.6&routeType=2&fromDzzp=false")
-                .header("X-Requested-With", "XMLHttpRequest")
-                .header("Sec-Fetch-Dest", "empty")
-                .header("Sec-Fetch-Mode", "cors")
-                .header("Sec-Fetch-Site", "same-origin")
-                .header("Sec-CH-UA", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
-                .header("Sec-CH-UA-Mobile", "?1")
-                .header("Sec-CH-UA-Platform", "\"Android\"")
-                .header("Cookie", cookie)
-                .header("token", dynamicToken)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val code = response.code
-            val body = response.body?.string() ?: ""
-            response.close()
-            
-            logger?.invoke("🔍 [Debug] DSAT HTTP $code for route $routeStr")
-            if (code == 403 || code == 401) {
-                logger?.invoke("   [Error] DSAT rejected token (Forbidden/Unauthorized)")
-            }
-            
-            if (response.isSuccessful) {
-                logger?.invoke("   [Response] ${body.take(100)}...")
-                val json = JSONObject(body)
-                val data = json.optJSONObject("data")
-                if (data == null) {
-                    logger?.invoke("🔍 [DEBUG] No 'data' field in response")
-                    continue
+                val dynamicToken = DSATTokenGenerator.generate(params)
+                val formBody = params.entries.joinToString("&") { (k, v) ->
+                    "$k=${java.net.URLEncoder.encode(v, "UTF-8")}"
                 }
-                val routeInfo = data.optJSONArray("routeInfo")
-                if (routeInfo == null) {
-                    logger?.invoke("🔍 [DEBUG] No 'routeInfo' in data")
-                    continue
-                }
-                logger?.invoke("🔍 [DEBUG] routeInfo has ${routeInfo.length()} stations")
 
-                // Find the station in the route: Prioritize exact match, then prefix match
-                var stationIndex = -1
+                val userAgent = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                    
+                val request = Request.Builder()
+                    .url("https://bis.dsat.gov.mo:37812/macauweb/routestation/bus")
+                    .post(formBody.toRequestBody("application/x-www-form-urlencoded; charset=UTF-8".toMediaType()))
+                    .header("Accept", "application/json, text/javascript, */*; q=0.01")
+                    .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+                    .header("Connection", "keep-alive")
+                    .header("User-Agent", userAgent)
+                    .header("Origin", "https://bis.dsat.gov.mo:37812")
+                    .header("Referer",
+                        "https://bis.dsat.gov.mo:37812/macauweb/routeLine.html" +
+                        "?routeName=$routeStr&direction=$dir&language=zh-tw&ver=3.8.6&routeType=2&fromDzzp=false")
+                    .header("X-Requested-With", "XMLHttpRequest")
+                    .header("Sec-Fetch-Dest", "empty")
+                    .header("Sec-Fetch-Mode", "cors")
+                    .header("Sec-Fetch-Site", "same-origin")
+                    .header("Sec-CH-UA", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
+                    .header("Sec-CH-UA-Mobile", "?1")
+                    .header("Sec-CH-UA-Platform", "\"Android\"")
+                    .header("Cookie", cookie)
+                    .header("token", dynamicToken)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val code = response.code
+                val body = response.body?.string() ?: ""
+                response.close()
                 
-                // First pass: exact match
-                for (i in 0 until routeInfo.length()) {
-                    val info = routeInfo.getJSONObject(i)
-                    val sc = info.optString("staCode")
-                    if (sc == stationId) {
-                        stationIndex = i
-                        logger?.invoke("   [Debug] Found exact station match: $sc (at index $i)")
-                        break
+                logger?.invoke("🔍 [Debug] DSAT HTTP $code for route $routeStr (dir $dir)")
+                if (code == 403 || code == 401) {
+                    logger?.invoke("   [Error] DSAT rejected token (Forbidden/Unauthorized)")
+                }
+                
+                if (response.isSuccessful) {
+                    // logger?.invoke("   [Response] ${body.take(100)}...")
+                    val json = JSONObject(body)
+                    val data = json.optJSONObject("data")
+                    if (data == null) {
+                        logger?.invoke("🔍 [DEBUG] No 'data' field in response")
+                        continue
                     }
-                }
-                
-                // Second pass: prefix match (if no exact match found)
-                if (stationIndex == -1) {
+                    val routeInfo = data.optJSONArray("routeInfo")
+                    if (routeInfo == null) {
+                        logger?.invoke("🔍 [DEBUG] No 'routeInfo' in data")
+                        continue
+                    }
+                    // logger?.invoke("🔍 [DEBUG] routeInfo has ${routeInfo.length()} stations")
+
+                    // Find the station in the route: Prioritize exact match, then prefix match
+                    var stationIndex = -1
+                    
+                    // First pass: exact match
                     for (i in 0 until routeInfo.length()) {
                         val info = routeInfo.getJSONObject(i)
                         val sc = info.optString("staCode")
-                        if (sc.startsWith(stationId)) {
+                        if (sc == stationId) {
                             stationIndex = i
-                            logger?.invoke("   [Debug] Found prefix station match: $sc (at index $i)")
+                            logger?.invoke("   [Debug] Found exact station match: $sc (at index $i, dir $dir)")
                             break
                         }
                     }
-                }
-
-                if (stationIndex == -1) {
-                    logger?.invoke("   [Warning] Station $stationId not found in route $routeStr")
-                }
-
-                if (stationIndex != -1) {
-                    // Look backwards from the station to find all buses behind it
-                    for (i in stationIndex downTo 0) {
-                        val sInfo = routeInfo.getJSONObject(i)
-                        val busInfo = sInfo.optJSONArray("busInfo")
-                        if (busInfo != null && busInfo.length() > 0) {
-                            val stopsAway = stationIndex - i
-                            // Add an entry for every bus found at this stop
-                            for (j in 0 until busInfo.length()) {
-                                processedData.add(
-                                    BusInfo(routeStr, 0, -1, remaining = stopsAway.toDouble())
-                                )
+                    
+                    // Second pass: prefix match (if no exact match found)
+                    if (stationIndex == -1) {
+                        for (i in 0 until routeInfo.length()) {
+                            val info = routeInfo.getJSONObject(i)
+                            val sc = info.optString("staCode")
+                            if (sc.startsWith(stationId)) {
+                                stationIndex = i
+                                logger?.invoke("   [Debug] Found prefix station match: $sc (at index $i, dir $dir)")
+                                break
                             }
                         }
                     }
+
+                    if (stationIndex != -1) {
+                        // Found the station in this direction, so we can stop looking at other direction for this route
+                        for (i in stationIndex downTo 0) {
+                            val sInfo = routeInfo.getJSONObject(i)
+                            val busInfo = sInfo.optJSONArray("busInfo")
+                            if (busInfo != null && busInfo.length() > 0) {
+                                val stopsAway = stationIndex - i
+                                for (j in 0 until busInfo.length()) {
+                                    processedData.add(
+                                        BusInfo(routeStr, dir.toInt(), -1, remaining = stopsAway.toDouble())
+                                    )
+                                }
+                            }
+                        }
+                        break // Exit dir loop and move to next route
+                    } else {
+                        // logger?.invoke("   [Debug] Station $stationId not found in direction $dir of $routeStr")
+                    }
                 }
             }
-            response.close()
         }
 
         return FetchResult(processedData, "DSAT Official API")

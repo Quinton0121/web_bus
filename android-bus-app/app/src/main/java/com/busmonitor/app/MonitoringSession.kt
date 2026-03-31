@@ -111,10 +111,14 @@ class MonitoringSession(
                     stationId, busNumbers, "", cookie, onLog
                 )
 
-                // Still no data from DSAT → fall back to old proxy
+                // Still no data from DSAT → fall back to old proxy (unless suffix is used)
                 if (result == null) {
-                    onLog("⚠️ DSAT unavailable — trying backup proxy...")
-                    result = BusDataFetcher.fetchFromProxyOnly(stationId, busNumbers)
+                    if (stationId.contains("/")) {
+                        onLog("⚠️ [Debug] Station $stationId not found in DSAT API. Skipping proxy fallback to avoid platform mixing.")
+                    } else {
+                        onLog("⚠️ DSAT unavailable — trying backup proxy...")
+                        result = BusDataFetcher.fetchFromProxyOnly(stationId, busNumbers)
+                    }
                 }
 
                 // Even proxy failed
