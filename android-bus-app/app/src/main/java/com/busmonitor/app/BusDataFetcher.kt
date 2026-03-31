@@ -245,7 +245,6 @@ object BusDataFetcher {
                                 }
                             }
                         }
-                        break // Exit dir loop and move to next route
                     }
                 }
             }
