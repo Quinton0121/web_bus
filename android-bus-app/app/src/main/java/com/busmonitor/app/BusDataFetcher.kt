@@ -21,7 +21,8 @@ object BusDataFetcher {
         val routeNo: String,
         val dir: Int,
         val lastbus: Int,
-        val remaining: Double? = null
+        val remaining: Double? = null,
+        val staCode: String? = null
     )
 
     data class FetchResult(
@@ -201,50 +202,50 @@ object BusDataFetcher {
                     }
                     // logger?.invoke("🔍 [DEBUG] routeInfo has ${routeInfo.length()} stations")
 
-                    // Find the station in the route: Prioritize exact match, then prefix match
-                    var stationIndex = -1
+                    // Find the station in the route: Prioritize exact match, then all prefix matches
+                    val matchedIndices = mutableListOf<Int>()
                     
                     // First pass: exact match
                     for (i in 0 until routeInfo.length()) {
                         val info = routeInfo.getJSONObject(i)
                         val sc = info.optString("staCode")
                         if (sc == stationId) {
-                            stationIndex = i
+                            matchedIndices.add(i)
                             logger?.invoke("   [Debug] Found exact station match: $sc (at index $i, dir $dir)")
                             break
                         }
                     }
                     
                     // Second pass: prefix match (if no exact match found)
-                    if (stationIndex == -1) {
+                    if (matchedIndices.isEmpty()) {
                         for (i in 0 until routeInfo.length()) {
                             val info = routeInfo.getJSONObject(i)
                             val sc = info.optString("staCode")
                             if (sc.startsWith(stationId)) {
-                                stationIndex = i
+                                matchedIndices.add(i)
                                 logger?.invoke("   [Debug] Found prefix station match: $sc (at index $i, dir $dir)")
-                                break
                             }
                         }
                     }
 
-                    if (stationIndex != -1) {
-                        // Found the station in this direction, so we can stop looking at other direction for this route
-                        for (i in stationIndex downTo 0) {
-                            val sInfo = routeInfo.getJSONObject(i)
-                            val busInfo = sInfo.optJSONArray("busInfo")
-                            if (busInfo != null && busInfo.length() > 0) {
-                                val stopsAway = stationIndex - i
-                                for (j in 0 until busInfo.length()) {
-                                    processedData.add(
-                                        BusInfo(routeStr, dir.toInt(), -1, remaining = stopsAway.toDouble())
-                                    )
+                    if (matchedIndices.isNotEmpty()) {
+                        // Found at least one station in this direction
+                        for (idx in matchedIndices) {
+                            val targetStaCode = routeInfo.getJSONObject(idx).optString("staCode")
+                            for (i in idx downTo 0) {
+                                val sInfo = routeInfo.getJSONObject(i)
+                                val busInfo = sInfo.optJSONArray("busInfo")
+                                if (busInfo != null && busInfo.length() > 0) {
+                                    val stopsAway = idx - i
+                                    for (j in 0 until busInfo.length()) {
+                                        processedData.add(
+                                            BusInfo(routeStr, dir.toInt(), -1, remaining = stopsAway.toDouble(), staCode = targetStaCode)
+                                        )
+                                    }
                                 }
                             }
                         }
                         break // Exit dir loop and move to next route
-                    } else {
-                        // logger?.invoke("   [Debug] Station $stationId not found in direction $dir of $routeStr")
                     }
                 }
             }
@@ -329,10 +330,13 @@ object BusDataFetcher {
         if (result.buses.isEmpty()) {
             sb.appendLine("No bus information available")
         } else {
-            // Group by route + direction
-            val grouped = result.buses.groupBy { "${it.routeNo}_${it.dir}" }
-            for ((key, buses) in grouped) {
-                val routeNo = key.substringBefore("_")
+            // Group by route + direction + staCode to distinguish platforms
+            val grouped = result.buses.groupBy { "${it.routeNo}_${it.dir}_${it.staCode}" }
+            
+            for ((_, buses) in grouped) {
+                val first = buses.first()
+                val routeNo = first.routeNo
+                
                 // Sort by distance (remaining stops or minutes)
                 val sorted = buses.sortedBy { it.remaining ?: it.lastbus.toDouble() }
 
@@ -346,7 +350,12 @@ object BusDataFetcher {
                         else -> "${bus.lastbus}"
                     }
                 }
-                sb.appendLine("Bus $routeNo : ${d.joinToString(" -> ")}")
+                
+                val suffix = if (first.staCode?.contains("/") == true) {
+                    "(${first.staCode!!.substringAfter("/")})"
+                } else ""
+                
+                sb.appendLine("Bus $routeNo$suffix : ${d.joinToString(" -> ")}")
             }
         }
 
